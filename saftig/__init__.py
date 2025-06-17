@@ -1,2 +1,2 @@
 from .wf import *
-from .common import *
+from .common import TestDataGenerator
