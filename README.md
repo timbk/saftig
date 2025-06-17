@@ -10,3 +10,4 @@ Static &amp; Adaptive Filtering Techniques
 cd doc/
 make html && open build/html/index.html
 ```
+

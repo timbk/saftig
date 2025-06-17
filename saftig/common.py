@@ -1,38 +1,62 @@
+from typing import Iterable
+
 import numpy as np
 
-class TestDataGenerator:
-    """Generate simple test data for correlated noise mitigation techniques
+def RMS(A:Iterable[float]):
+    """ Calculate the root mean square value of an array """
+    return np.sqrt(np.mean(np.square(A)))
 
-    :param witness_noise_level: amplitude ratio of the sensor noise to the correlated noise in the witness sensor
-                 Scalar or 1D-vector for multiple sensors
-    :param target_noise_level: amplitude ratio of the sensor noise to the correlated noise in the target sensor
-    :param transfer_functon: ratio between the amplitude in the target and witness signals
+def make_2D_array(A:Iterable|Iterable[Iterable]):
+    """add a dimension to 1D arrays and leave 2D arrays as they are
+    This is intended to allow 1D array input for single channel application
 
+    :param A: input array
+
+    :return: exteneded array
+
+    :raises: ValueError if the input shape is not compatible
     """
+    A = np.array(A)
+    if len(A.shape) == 1:
+        return np.array([A])
+    elif len(A.shape) == 2:
+        return A
+    else:
+        raise ValueError("Input must be 1D or 2D array")
 
-    def __init__(self, witness_noise_level:float | list[float]=0.1, target_noise_level:float=0, transfer_function:float=1):
-        self.witness_noise_level = np.array(witness_noise_level)
-        self.target_noise_level = np.array(target_noise_level)
-        self.transfer_function = np.array(transfer_function)
 
-        if len(self.witness_noise_level.shape) == 0:
-            self.witness_noise_level = np.array([self.witness_noise_level])
+class FilterBase:
+    """ common interface definition for Filter implementations
 
-        assert len(self.witness_noise_level.shape) == 1, f"witness_noise_level.shape = {self.witness_noise_level.shape}"
-        assert len(self.target_noise_level.shape) == 0
-        assert len(self.transfer_function.shape) == 0
+    :param N_filter: Length of the FIR filter (how many samples are in the input window per output sample)
+    :param idx_target: Position of the prediction
+    :param N_channel: Number of witness sensor channels
+    """
+    filter_state = None
 
-    def generate(self, N:int):
-        """Generate sequences of samples
+    def __init__(self, N_filter:int, idx_target:int, N_channel:int=1):
+        self.N_filter = N_filter
+        self.idx_target = idx_target
 
-        :param N: number of samples
+        assert self.N_filter > 0, "N_filter must be a positive integer"
+        assert self.idx_target >= 0 and self.idx_target < self.N_filter, "idx_target must not be negative and smaller than N_filter"
 
-        :return: witness signal, target signal
-
+    def condition(self, witness:Iterable[float]|Iterable[Iterable[float]], target:Iterable[float]):
+        """ Use an input dataset to condition the filter
+        
+        :param witness: Witness sensor data
+        :param target: Target sensor data
         """
-        t_c = np.random.normal(0, 1, N)
-        w_n = np.random.normal(0, 1, (len(self.witness_noise_level), N)) * self.witness_noise_level[:,None]
-        t_n = np.random.normal(0, 1, N) * self.target_noise_level
+        pass # this should be implemented by the child class
 
-        return  (t_c + w_n) * self.transfer_function, \
-                (t_c + t_n)
+    def apply(self, witness:Iterable[float]|Iterable[Iterable[float]], target:Iterable[float], pad:bool=True):
+        """ Apply the filter to input data
+        
+        :param witness: Witness sensor data
+        :param target: Target sensor data
+        :param pad: if True, apply padding zeros so that the length matches the target signal
+
+        :return: prediction
+        """
+        pass # this should be implemented by the child class
+
