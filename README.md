@@ -3,6 +3,10 @@ Static &amp; Adaptive Filtering Techniques
 
 ## Terminology
 
-* Target
-* Witness
+* Witness, Target
 
+## Build config
+```bash
+cd doc/
+make html && open build/html/index.html
+```
