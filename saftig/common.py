@@ -1,4 +1,4 @@
-from typing import Iterable
+from typing import Iterable, Union
 
 import numpy as np
 
@@ -36,9 +36,11 @@ class FilterBase:
 
     def __init__(self, N_filter:int, idx_target:int, N_channel:int=1):
         self.N_filter = N_filter
+        self.N_channel = N_channel
         self.idx_target = idx_target
 
         assert self.N_filter > 0, "N_filter must be a positive integer"
+        assert self.N_channel > 0, "N_filter must be a positive integer"
         assert self.idx_target >= 0 and self.idx_target < self.N_filter, "idx_target must not be negative and smaller than N_filter"
 
     def condition(self, witness:Iterable[float]|Iterable[Iterable[float]], target:Iterable[float]):
@@ -49,14 +51,31 @@ class FilterBase:
         """
         pass # this should be implemented by the child class
 
-    def apply(self, witness:Iterable[float]|Iterable[Iterable[float]], target:Iterable[float], pad:bool=True):
+    def apply(self, witness:Iterable[float]|Iterable[Iterable[float]], target:Iterable[float], pad:bool=True, update_state:bool=False):
         """ Apply the filter to input data
         
         :param witness: Witness sensor data
         :param target: Target sensor data
         :param pad: if True, apply padding zeros so that the length matches the target signal
+        :param update_state: if True, the filter state will be changed. If false, the filter state will remain
 
         :return: prediction
         """
         pass # this should be implemented by the child class
+
+    def check_data_dimensions(self, witness:Iterable[float]|Iterable[Iterable[float]], target:Iterable[float]) -> Union[Iterable[Iterable[float]], Iterable[float]]:
+        """Check the dimensions of the provided input data and apply make_2D_array()
+
+        :param witness: Witness sensor data
+        :param target: Target sensor data
+
+        :return: target, witness
+
+        :raises: AssertionError
+        """
+        witness = make_2D_array(witness)
+        assert witness.shape[0] == self.N_channel, "witness data shape does not match configured channel count"
+        assert target is None or target.shape[0] == witness.shape[1], "Missmatch between target and witness data shapes"
+
+        return witness, target
 

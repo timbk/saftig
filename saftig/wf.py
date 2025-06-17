@@ -85,24 +85,29 @@ class WienerFilter(FilterBase):
         :param witness: Witness sensor data
         :param target: Target sensor data
         """
+        witness, target = self.check_data_dimensions(witness, target)
+
         self.filter_state, full_rank = wf_calculate(witness, target, self.N_filter)
 
         if not full_rank:
             print("Warning: Filter is not of full rank")
         return self.filter_state, full_rank
 
-    def apply(self, witness:Iterable[float]|Iterable[Iterable[float]], target:Iterable[float]=None, pad:bool=True) -> Iterable[float]:
+    def apply(self, witness:Iterable[float]|Iterable[Iterable[float]], target:Iterable[float]=None, pad:bool=True, update_state:bool=False) -> Iterable[float]:
         """ Apply the filter to input data
 
         :param witness: Witness sensor data
         :param target: Target sensor data (is ignored)
         :param pad: if True, apply padding zeros so that the length matches the target signal
+        :param update_state: ignored
 
         :return: prediction
         """
+        witness, target = self.check_data_dimensions(witness, target)
         assert self.filter_state is not None, "The filter must be conditioned before calling apply()"
 
         pred = wf_apply(self.filter_state, witness)
         if pad:
             pred = np.concatenate([np.zeros(self.N_filter-1-self.idx_target), pred, np.zeros(self.idx_target)])
         return pred
+
