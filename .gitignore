@@ -106,3 +106,4 @@ cython_debug/
 
 # vim
 .*.swp
+.sw*

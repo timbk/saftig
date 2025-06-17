@@ -1,4 +1,5 @@
-from .wf import WienerFilter
 from .common import RMS
 from .evaluation import TestDataGenerator
 
+from .wf import WienerFilter
+from .lms import LMSFilter

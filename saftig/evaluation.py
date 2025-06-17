@@ -39,3 +39,4 @@ class TestDataGenerator:
 
         return  (t_c + w_n) * self.transfer_function, \
                 (t_c + t_n)
+

@@ -10,5 +10,7 @@
 
 .. toctree::
    saftig.common
+   saftig.evaluation
    saftig.wf
+   saftig.lms
 
