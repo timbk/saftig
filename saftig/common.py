@@ -15,6 +15,14 @@ def make_2D_array(A:Iterable|Iterable[Iterable]):
     :return: exteneded array
 
     :raises: ValueError if the input shape is not compatible
+
+    >>> make_2D_array([1, 2])
+    array([[1, 2]])
+
+    >>> make_2D_array([[1, 2], [3, 4]])
+    array([[1, 2],
+           [3, 4]])
+
     """
     A = np.array(A)
     if len(A.shape) == 1:

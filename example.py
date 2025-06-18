@@ -1,6 +1,7 @@
 import saftig
 from icecream import ic
 import matplotlib.pyplot as plt
+import numpy as np
 
 # settings
 N = int(1e5)
@@ -11,10 +12,14 @@ if __name__ == "__main__":
     w, t = saftig.TestDataGenerator([0.1]*N_channel).generate(N)
     
     #filt = saftig.WienerFilter(N_filter, 0, N_channel)
-    filt = saftig.LMSFilter(N_filter, 0, N_channel, step_scale=0.5)
+    filt = saftig.LMSFilter(N_filter, 0, N_channel, step_scale=0.1)
 
     filt.condition(w, t)
-    pred = filt.apply(w, t, pad=True)
+    fs_before = np.array(filt.filter_state)
+    pred = filt.apply(w, t, pad=True, update_state=True)
+    fs_after = np.array(filt.filter_state)
+
+    ic((fs_before == fs_after).all())
 
     ic(filt.filter_state.shape)
     ic(pred.shape)
