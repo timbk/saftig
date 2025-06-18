@@ -45,8 +45,7 @@ def wf_calculate(witness:Iterable[float]|Iterable[Iterable[float]], target:Itera
 
     # calculate pseudo-inverse correlation matrix of inputs and the filter coefficients
     R_ww_inv, rank = scipy.linalg.pinv(R_ww, return_rank=True)
-    full_rank = True
-    ic(rank, R_ww_inv.shape, R_ws.shape)
+    full_rank = (rank == len(R_ws))
     WFC = R_ww_inv.dot(R_ws)
 
     # unwrap into seperate FIR filters
@@ -71,6 +70,19 @@ class WienerFilter(FilterBase):
     :param N_filter: Length of the FIR filter (how many samples are in the input window per output sample)
     :param idx_target: Position of the prediction
     :param N_channel: Number of witness sensor channels
+
+    >>> import saftig as sg
+    >>> N_filter = 128
+    >>> witness, target = sg.TestDataGenerator(0.1).generate(int(1e5))
+    >>> filt = sg.WienerFilter(N_filter, 0, 1)
+    >>> _coefficients, full_rank = filt.condition(witness, target)
+    >>> full_rank
+    True
+    >>> prediction = filt.apply(witness, target) # check on the data used for conditioning
+    >>> residual_rms = sg.RMS(target-prediction)
+    >>> residual_rms > 0.05 and residual_rms < 0.15 # the expected RMS in this test scenario is 0.1
+    True
+
     """
 
     #: The FIR coefficients of the WF

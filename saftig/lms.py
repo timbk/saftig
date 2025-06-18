@@ -16,9 +16,20 @@ class LMSFilter(FilterBase):
     :param N_channel: Number of witness sensor channels
     :param normalized: if True: NLMS, else LMS
     :param step_scale: the learning rate of the LMS filter
+
+    >>> import saftig as sg
+    >>> N_filter = 128
+    >>> witness, target = sg.TestDataGenerator(0.1).generate(int(1e5))
+    >>> filt = sg.LMSFilter(N_filter, 0, 1)
+    >>> filt.condition(witness, target)
+    >>> prediction = filt.apply(witness, target) # check on the data used for conditioning
+    >>> residual_rms = sg.RMS(target-prediction)
+    >>> residual_rms > 0.05 and residual_rms < 0.15 # the expected RMS in this test scenario is 0.1
+    True
+
     """
 
-    #: The FIR coefficients of the WF
+    #: The current FIR coefficients of the LMS filter
     filter_state:Iterable[Iterable[float]] = None
 
     def __init__(self, N_filter:int, idx_target:int, N_channel:int=1, normalized:bool=True, step_scale:float=0.5, coefficient_clipping:float|None=None):
@@ -59,12 +70,14 @@ class LMSFilter(FilterBase):
 
         pred_length = len(target)-max(self.N_filter, self.idx_target)
 
+        filter_state = self.filter_state if update_state else np.array(self.filter_state)
+
         # iterate over data (the python loop is very slow)
         prediction = []
         for idx in range(0, pred_length+1):
             # make prediction
             X = witness[:,idx:idx+self.N_filter] # input to predcition
-            pred = np.einsum('ij,ij->', self.filter_state, X)
+            pred = np.einsum('ij,ij->', filter_state, X)
             err = target[idx+self.idx_target] - pred
 
             prediction.append(pred)
@@ -74,12 +87,12 @@ class LMSFilter(FilterBase):
                 norm = np.einsum('ij,ij->', X, X)
                 if norm < 0:
                     raise ValueError('Overflow! You are probably passing integers of insufficient precision to this function.')
-                self.filter_state += 2*self.step_scale*err*X / norm
+                filter_state += 2*self.step_scale*err*X / norm
             else:
-                self.filter_state += 2*self.step_scale*err*X
+                filter_state += 2*self.step_scale*err*X
 
             if self.coefficient_clipping is not None:
-                np.clip(self.filter_state, -self.coefficient_clipping, self.coefficient_clipping)
+                np.clip(filter_state, -self.coefficient_clipping, self.coefficient_clipping)
 
         prediction = np.array(prediction)
         if pad:
