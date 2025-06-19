@@ -2,8 +2,8 @@ SHELL := /bin/bash
 
 all: doc testing linter
 
-testing:
-	python testing.py
+test:
+	python -m unittest discover .
 
 linter:
 	./tooling/run_linter.sh
@@ -14,4 +14,4 @@ doc: doc/source/* doc/*
 view: doc
 	open doc/build/html/index.html
 
-.PHONY: all, doc, view, testing, linter
+.PHONY: all, doc, view, test, linter

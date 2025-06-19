@@ -33,7 +33,7 @@ class LMSFilter(FilterBase):
                  idx_target:int,
                  n_channel:int=1,
                  normalized:bool=True,
-                 step_scale:float=0.5,
+                 step_scale:float=0.1,
                  coefficient_clipping:float|None=None):
         super().__init__(n_filter, idx_target, n_channel)
         self.normalized = normalized

@@ -68,7 +68,7 @@ class UpdatingWienerFilter(FilterBase):
 
         all_full_rank = True
         prediction = []
-        for idx in range(self.n_filter, len(target), self.n_filter):
+        for idx in range(self.n_filter-1, len(target), self.n_filter):
             # calculate filter coefficients
             selection_conditioning = np.arange(max(0, idx-self.context_pre), min(len(target), idx+self.n_filter+self.context_post))
             self.filter_state, full_rank = wf_calculate(witness[:,selection_conditioning],
@@ -85,5 +85,5 @@ class UpdatingWienerFilter(FilterBase):
             print('Warning: not all UWF calculations had full rank')
 
         if pad:
-            prediction = np.concatenate([np.zeros(self.n_filter-self.idx_target), prediction, np.zeros(self.idx_target)])
+            prediction = np.concatenate([np.zeros(self.n_filter-1-self.idx_target), prediction, np.zeros(self.idx_target)])
         return prediction

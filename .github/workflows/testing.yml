@@ -28,5 +28,5 @@ jobs:
     - name: Testing
       run: |
         pip install .
-        python testing.py
+        make test
 

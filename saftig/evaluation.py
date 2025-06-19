@@ -3,7 +3,7 @@ from typing import Iterable
 
 import numpy as np
 
-from .common import RMS, total_power
+from .common import total_power
 
 class TestDataGenerator:
     """Generate simple test data for correlated noise mitigation techniques
@@ -13,6 +13,15 @@ class TestDataGenerator:
                  Scalar or 1D-vector for multiple sensors
     :param target_noise_level: amplitude ratio of the sensor noise to the correlated noise in the target sensor
     :param transfer_functon: ratio between the amplitude in the target and witness signals
+    :param sample_rate: The outputs are referenced to an ASD of 1/sqrt(Hz) if a sample rate is provided
+
+    >>> import saftig as sg
+    >>> # create data with two witness sensors with relative noise amplitudes of 0.1
+    >>> tdg = sg.TestDataGenerator(witness_noise_level=[0.1, 0.1])
+    >>> # generate a dataset with 1000 samples
+    >>> witness, target = tdg.generate(1000)
+    >>> witness.shape, target.shape
+    ((2, 1000), (1000,))
 
     """
 
@@ -41,7 +50,7 @@ class TestDataGenerator:
 
         :return: Array of white noise
         """
-        return np.random.normal(0, 1/np.sqrt(self.sample_rate), shape)
+        return np.random.normal(0, np.sqrt(self.sample_rate/2), shape)
 
     def generate(self, N:int):
         """Generate sequences of samples
@@ -71,8 +80,8 @@ def residual_power_ratio(target:Iterable[float],
     :param stop: use only a section of the arrays, stop at this index
     :param remove DC component: remove DC component before calculation
     """
-    target = np.array(target[start:stop])
-    prediction = np.array(prediction[start:stop])
+    target = np.array(target[start:stop]).astype(np.float64)
+    prediction = np.array(prediction[start:stop]).astype(np.float64)
     assert target.shape == prediction.shape
 
     if remove_dc:
