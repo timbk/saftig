@@ -135,7 +135,7 @@ class WienerFilter(FilterBase):
         witness, target = self.check_data_dimensions(witness, target)
         assert self.filter_state is not None, "The filter must be conditioned before calling apply()"
 
-        pred = wf_apply(self.filter_state, witness)
+        prediction = wf_apply(self.filter_state, witness)
         if pad:
-            pred = np.concatenate([np.zeros(self.n_filter-1-self.idx_target), pred, np.zeros(self.idx_target)])
-        return pred
+            prediction = np.concatenate([np.zeros(self.n_filter-1-self.idx_target), prediction, np.zeros(self.idx_target)])
+        return prediction

@@ -1,0 +1,10 @@
+import unittest
+
+import saftig as sg
+
+from .test_filters import TestFilter
+
+class TestWienerFilter(unittest.TestCase, TestFilter):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.set_target(sg.WienerFilter)
