@@ -12,5 +12,6 @@
    saftig.common
    saftig.evaluation
    saftig.wf
+   saftig.uwf
    saftig.lms
 
