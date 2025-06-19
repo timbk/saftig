@@ -5,7 +5,9 @@ import numpy as np
 
 def RMS(A:Iterable[float]):
     """ Calculate the root mean square value of an array """
-    return np.sqrt(np.mean(np.square(A)))
+	# float() is used to convert this into a standard float instead of a 0D numpy array
+	# this simplifies writing doctests
+    return float(np.sqrt(np.mean(np.square(A))))
 
 def make_2d_array(A:Iterable|Iterable[Iterable]):
     """add a dimension to 1D arrays and leave 2D arrays as they are

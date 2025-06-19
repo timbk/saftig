@@ -55,7 +55,7 @@ def wf_calculate(witness:Iterable[float]|Iterable[Iterable[float]],
 
     # calculate pseudo-inverse correlation matrix of inputs and the filter coefficients
     # for some reason the scipy.linalg implementations were extremely slow on white noise test case => using numpy
-    full_rank = np.linalg.matrix_rank(R_ww, hermitian=True) == len(R_ww[0])
+    full_rank = bool(np.linalg.matrix_rank(R_ww, hermitian=True) == len(R_ww[0]))
     R_ww_inv = np.linalg.pinv(R_ww, hermitian=True)
     WFC = R_ww_inv.dot(R_ws)
 

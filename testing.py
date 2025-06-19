@@ -1,5 +1,6 @@
 import unittest, doctest
 import saftig
+from icecream import ic
 
 '''
 TODO:
@@ -9,7 +10,6 @@ TODO:
 - check that cancellation efficiencies match the expectation
 - effect of all parameters
 '''
-
 
 module_list = [
     saftig.common,
@@ -27,5 +27,8 @@ if __name__ == "__main__":
         suite.addTest(doctest.DocTestSuite(module))
 
     runner = unittest.TextTestRunner()
-    runner.run(suite)
+    status = runner.run(suite)
+
+    if not status.wasSuccessful():
+        exit(8) # indicate failure for CI
 
