@@ -68,17 +68,18 @@ class LMSFilter(FilterBase):
         witness, target = self.check_data_dimensions(witness, target)
         assert target is not None, "Target data must be supplied"
 
-        pred_length = len(target)-max(self.N_filter, self.idx_target)
+        offset_target = self.N_filter - self.idx_target - 1
+        pred_length = len(target) - self.N_filter + 1
 
         filter_state = self.filter_state if update_state else np.array(self.filter_state)
 
         # iterate over data (the python loop is very slow)
         prediction = []
-        for idx in range(0, pred_length+1):
+        for idx in range(0, pred_length):
             # make prediction
             X = witness[:,idx:idx+self.N_filter] # input to predcition
             pred = np.einsum('ij,ij->', filter_state, X)
-            err = target[idx+self.idx_target] - pred
+            err = target[idx+offset_target] - pred
 
             prediction.append(pred)
 
@@ -97,9 +98,9 @@ class LMSFilter(FilterBase):
         prediction = np.array(prediction)
         if pad:
             prediction = np.concatenate([
-                np.zeros(self.idx_target),
+                np.zeros(offset_target),
                 prediction,
-                np.zeros(len(target)-self.idx_target-pred_length-1)
+                np.zeros(len(target)-pred_length-offset_target)
                 ])
 
         return prediction
