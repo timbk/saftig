@@ -32,8 +32,9 @@ if __name__ == "__main__":
     w, t = saftig.TestDataGenerator([0.1]*N_channel).generate(N)
     
     #filt = saftig.WienerFilter(N_filter, 0, N_channel)
-    filt = saftig.UpdatingWienerFilter(N_filter, 0, N_channel, 40*N_filter)
-    #filt = saftig.LMSFilter(N_filter, 0, N_channel, step_scale=0.1)
+    #filt = saftig.UpdatingWienerFilter(N_filter, 0, N_channel, 20*N_filter, 20*N_filter)
+    filt = saftig.LMSFilter(N_filter, 0, N_channel, step_scale=0.1)
+    #filt = saftig.PolynomialLMSFilter(N_filter, 0, N_channel, step_scale=0.1, order=3, coefficient_clipping=5)
 
     filt.condition(w, t)
     fs_before = np.array(filt.filter_state)
