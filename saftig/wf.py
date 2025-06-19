@@ -38,14 +38,25 @@ def wf_calculate(witness:Iterable[float]|Iterable[Iterable[float]], target:Itera
 
     def calc_r_matrix(A, B, N_filter):
         """ calculate the cross correlation matrix of a and b """
+        cc = correlate(A, B[:-N_filter], mode='valid')
+        return np.array([np.concatenate([cc[i::-1], cc[1:N_filter-i]]) for i in range(N_filter)])
+    def calc_r_matrix_symmetric(A, B, N_filter):
+        """ calculate the cross correlation matrix of a and b and average positive and negative lag
+            to make the result symmetric (as is expected for an autocorrelation)
+        """
         cc = correlate(A, B[N_filter:-N_filter], mode='valid')
-        return np.array([[cc[N_filter + j - i] for j in range(N_filter)] for i in range(N_filter)])
+        cc = np.concatenate([ [cc[N_filter]], (cc[N_filter+1:] + cc[N_filter-1::-1])/2 ])
+        return np.array([np.concatenate([cc[i::-1], cc[1:N_filter-i]]) for i in range(N_filter)])
 
-    R_ww = np.block([[calc_r_matrix(A, B, N_filter) for B in witness] for A in witness])
+    if len(target) >= 3*N_filter: # using both sides is only possible if enugh data is provided
+        R_ww = np.block([[calc_r_matrix_symmetric(A, B, N_filter) for B in witness] for A in witness])
+    else:
+        R_ww = np.block([[calc_r_matrix(A, B, N_filter) for B in witness] for A in witness])
 
     # calculate pseudo-inverse correlation matrix of inputs and the filter coefficients
-    R_ww_inv, rank = scipy.linalg.pinv(R_ww, return_rank=True)
-    full_rank = (rank == len(R_ws))
+    # for some reason the scipy.linalg implementations were extremely slow on white noise test case => using numpy
+    full_rank = np.linalg.matrix_rank(R_ww, hermitian=True) == len(R_ww[0])
+    R_ww_inv = np.linalg.pinv(R_ww, hermitian=True)
     WFC = R_ww_inv.dot(R_ws)
 
     # unwrap into seperate FIR filters
@@ -99,7 +110,7 @@ class WienerFilter(FilterBase):
         """
         witness, target = self.check_data_dimensions(witness, target)
 
-        self.filter_state, full_rank = wf_calculate(witness, target, self.N_filter)
+        self.filter_state, full_rank = wf_calculate(witness, target, self.N_filter, idx_target=self.idx_target)
 
         if not full_rank:
             print("Warning: Filter is not of full rank")
