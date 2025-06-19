@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-all: doc testing linter
+all: doc test linter
 
 test:
 	coverage run -m unittest discover .

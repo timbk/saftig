@@ -103,6 +103,7 @@ class FilterBase:
 
         :raises: AssertionError
         """
+        target = np.array(target)
         witness = make_2d_array(witness)
         assert witness.shape[0] == self.n_channel, "witness data shape does not match configured channel count"
         assert target is None or target.shape[0] == witness.shape[1], "Missmatch between target and witness data shapes"

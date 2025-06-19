@@ -1,5 +1,6 @@
 """ Clasical static Wiener filter """
 from typing import Union, Iterable
+from warnings import warn
 
 import numpy as np
 from scipy.signal import correlate
@@ -115,7 +116,7 @@ class WienerFilter(FilterBase):
                                                     idx_target=self.idx_target)
 
         if not full_rank:
-            print("Warning: Filter is not of full rank")
+            warn("Warning: Filter is not of full rank", RuntimeWarning)
         return self.filter_state, full_rank
 
     def apply(self,

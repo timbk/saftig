@@ -2,9 +2,9 @@
 
 '''
 TODO:
-- check output dimension correctness
++ check output dimension correctness
++ check that cancellation efficiencies match the expectation
 - check that no exceptions are thrown for different input lengths
 - check that FIR filter coefficient peak is at correct index (correct targeting)
-- check that cancellation efficiencies match the expectation
-- effect of all parameters
+- check effectveness of all parameters
 '''

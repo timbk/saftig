@@ -1,7 +1,7 @@
 """ Updating Wiener Filter """
 from typing import Iterable
+from warnings import warn
 
-import sys
 import numpy as np
 
 from .common import FilterBase
@@ -48,7 +48,7 @@ class UpdatingWienerFilter(FilterBase):
         """ Placeholder for compatibility to other filters; does nothing!
         """
         if not hide_warning:
-            print("Warning: UpdatingWienerFilter.condition() is just a placeholder, it has no effect.", file=sys.stderr)
+            warn("Warning: UpdatingWienerFilter.condition() is just a placeholder, it has no effect.", RuntimeWarning)
 
     def apply(self,
               witness:Iterable[float]|Iterable[Iterable[float]],

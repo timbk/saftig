@@ -51,6 +51,3 @@ class TestResidualAmplitudeRatio(unittest.TestCase):
         b = np.array([np.sqrt(.5), -np.sqrt(0.5)])
         self.assertAlmostEqual(sg.residual_amplitude_ratio(a, a+b, remove_dc=False), 1/5)
         self.assertAlmostEqual(sg.residual_amplitude_ratio(a, a+b, remove_dc=True), np.sqrt(2))
-
-if __name__ == "__main__":
-    unittest.main()
