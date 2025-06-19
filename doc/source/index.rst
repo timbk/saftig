@@ -14,4 +14,5 @@
    saftig.wf
    saftig.uwf
    saftig.lms
+   saftig.polylms
 

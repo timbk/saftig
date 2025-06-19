@@ -1,3 +1,5 @@
+# experiment in building a polynomial lms filter
+
 from typing import Union, Iterable
 
 import numpy as np
@@ -8,44 +10,48 @@ from .common import FilterBase, make_2D_array
 from icecream import ic
 
 
-class LMSFilter(FilterBase):
-    """LMS filter implementation
+class PolynomialLMSFilter(FilterBase):
+    r"""Experimental non-linear LMS-like filter implementation
+    Implements: :math:`x[n] = \sum_p\sum_i\sum_t {w_i[n-t]}^pH_{it}` where p is the polynomial order, i the channel and t the index within the filter
 
     :param N_filter: Length of the FIR filter (how many samples are in the input window per output sample)
     :param idx_target: Position of the prediction
     :param N_channel: Number of witness sensor channels
     :param normalized: if True: NLMS, else LMS
     :param step_scale: the learning rate of the LMS filter
+    :param order: polynomial order of the filter
 
     >>> import saftig as sg
     >>> N_filter = 128
     >>> witness, target = sg.TestDataGenerator(0.1).generate(int(1e5))
-    >>> filt = sg.LMSFilter(N_filter, 0, 1)
+    >>> filt = sg.PolynomialLMSFilter(N_filter, 0, 1, step_scale=0.1, order=2, coefficient_clipping=4)
     >>> filt.condition(witness, target)
     >>> prediction = filt.apply(witness, target) # check on the data used for conditioning
-    >>> residual_rms = sg.RMS(target-prediction)
+    >>> residual_rms = sg.RMS((target-prediction)[1000:])
     >>> residual_rms > 0.05 and residual_rms < 0.15 # the expected RMS in this test scenario is 0.1
     True
 
     """
 
     #: The current FIR coefficients of the LMS filter
-    filter_state:Iterable[Iterable[float]]|None = None
+    filter_state:Iterable[Iterable[Iterable[float]]]|None = None
 
-    def __init__(self, N_filter:int, idx_target:int, N_channel:int=1, normalized:bool=True, step_scale:float=0.5, coefficient_clipping:float|None=None):
+    def __init__(self, N_filter:int, idx_target:int, N_channel:int=1, normalized:bool=True, step_scale:float=0.5, coefficient_clipping:float|None=None, order:int=1):
         super().__init__(N_filter, idx_target, N_channel)
         self.normalized = normalized
         self.step_scale = step_scale
         self.coefficient_clipping = coefficient_clipping
+        self.order = order
 
         assert self.step_scale > 0, "Step scale must be positive"
         assert self.coefficient_clipping is None or self.coefficient_clipping > 0, "coefficient_clipping must be positive"
+        assert self.order > 0
 
         self.reset()
 
     def reset(self) -> None:
         """ reset the filter coefficients to zero """
-        self.filter_state = np.zeros((self.N_channel, self.N_filter))
+        self.filter_state = np.zeros((self.order, self.N_channel, self.N_filter))
 
     def condition(self, witness:Iterable[float]|Iterable[Iterable[float]], target:Iterable[float]) -> bool:
         """ Use an input dataset to condition the filter
@@ -77,7 +83,7 @@ class LMSFilter(FilterBase):
         for idx in range(0, pred_length+1):
             # make prediction
             X = witness[:,idx:idx+self.N_filter] # input to predcition
-            pred = np.einsum('ij,ij->', filter_state, X)
+            pred = sum( np.einsum('ij,ij->', filter_state[i], X**(i+1)) for i in range(self.order))
             err = target[idx+self.idx_target] - pred
 
             prediction.append(pred)
@@ -87,9 +93,11 @@ class LMSFilter(FilterBase):
                 norm = np.einsum('ij,ij->', X, X)
                 if norm < 0:
                     raise ValueError('Overflow! You are probably passing integers of insufficient precision to this function.')
-                filter_state += 2*self.step_scale*err*X / norm
+                for i in range(self.order):
+                    filter_state[i] += 2*self.step_scale*err*X**(i+1) / norm**((i+2)/2) # TODO: this might not be the correct normalization
             else:
-                filter_state += 2*self.step_scale*err*X
+                for i in range(self.order):
+                    filter_state[i] += 2*self.step_scale*err*X**(i+1)
 
             if self.coefficient_clipping is not None:
                 filter_state = np.clip(filter_state, -self.coefficient_clipping, self.coefficient_clipping)

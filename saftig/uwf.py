@@ -32,7 +32,7 @@ class UpdatingWienerFilter(FilterBase):
     """
 
     #: The FIR coefficients of the WF
-    filter_state:Iterable[Iterable[float]] = None
+    filter_state:Iterable[Iterable[float]]|None = None
 
     def __init__(self, N_filter:int, idx_target:int, N_channel:int=1, context_pre:int=0, context_post:int=0):
         super().__init__(N_filter, idx_target, N_channel)
