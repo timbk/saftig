@@ -3,7 +3,11 @@ SHELL := /bin/bash
 all: doc testing linter
 
 test:
-	python -m unittest discover .
+	coverage run -m unittest discover .
+coverage:
+	coverage report
+cweb:
+	coverage html && open htmlcov/index.html
 
 linter:
 	./tooling/run_linter.sh
@@ -14,4 +18,4 @@ doc: doc/source/* doc/*
 view: doc
 	open doc/build/html/index.html
 
-.PHONY: all, doc, view, test, linter
+.PHONY: all, doc, view, test, linter, coverage, cweb
