@@ -1,30 +1,26 @@
-# experiment in building a polynomial lms filter
+""" experiment in building a polynomial lms filter """
 
-from typing import Union, Iterable
-
+from typing import Iterable
 import numpy as np
-from scipy.signal import correlate
 
-from .common import FilterBase, make_2D_array
-
-from icecream import ic
+from .common import FilterBase
 
 
 class PolynomialLMSFilter(FilterBase):
     r"""Experimental non-linear LMS-like filter implementation
     Implements: :math:`x[n] = \sum_p\sum_i\sum_t {w_i[n-t]}^pH_{it}` where p is the polynomial order, i the channel and t the index within the filter
 
-    :param N_filter: Length of the FIR filter (how many samples are in the input window per output sample)
+    :param n_filter: Length of the FIR filter (how many samples are in the input window per output sample)
     :param idx_target: Position of the prediction
-    :param N_channel: Number of witness sensor channels
+    :param n_channel: Number of witness sensor channels
     :param normalized: if True: NLMS, else LMS
     :param step_scale: the learning rate of the LMS filter
     :param order: polynomial order of the filter
 
     >>> import saftig as sg
-    >>> N_filter = 128
+    >>> n_filter = 128
     >>> witness, target = sg.TestDataGenerator(0.1).generate(int(1e5))
-    >>> filt = sg.PolynomialLMSFilter(N_filter, 0, 1, step_scale=0.1, order=2, coefficient_clipping=4)
+    >>> filt = sg.PolynomialLMSFilter(n_filter, 0, 1, step_scale=0.1, order=2, coefficient_clipping=4)
     >>> filt.condition(witness, target)
     >>> prediction = filt.apply(witness, target) # check on the data used for conditioning
     >>> residual_rms = sg.RMS((target-prediction)[1000:])
@@ -36,8 +32,15 @@ class PolynomialLMSFilter(FilterBase):
     #: The current FIR coefficients of the LMS filter
     filter_state:Iterable[Iterable[Iterable[float]]]|None = None
 
-    def __init__(self, N_filter:int, idx_target:int, N_channel:int=1, normalized:bool=True, step_scale:float=0.5, coefficient_clipping:float|None=None, order:int=1):
-        super().__init__(N_filter, idx_target, N_channel)
+    def __init__(self,
+                 n_filter:int,
+                 idx_target:int,
+                 n_channel:int=1,
+                 normalized:bool=True,
+                 step_scale:float=0.5,
+                 coefficient_clipping:float|None=None,
+                 order:int=1):
+        super().__init__(n_filter, idx_target, n_channel)
         self.normalized = normalized
         self.step_scale = step_scale
         self.coefficient_clipping = coefficient_clipping
@@ -51,9 +54,11 @@ class PolynomialLMSFilter(FilterBase):
 
     def reset(self) -> None:
         """ reset the filter coefficients to zero """
-        self.filter_state = np.zeros((self.order, self.N_channel, self.N_filter))
+        self.filter_state = np.zeros((self.order, self.n_channel, self.n_filter))
 
-    def condition(self, witness:Iterable[float]|Iterable[Iterable[float]], target:Iterable[float]) -> bool:
+    def condition(self,
+                  witness:Iterable[float]|Iterable[Iterable[float]],
+                  target:Iterable[float]) -> bool:
         """ Use an input dataset to condition the filter
 
         :param witness: Witness sensor data
@@ -61,7 +66,11 @@ class PolynomialLMSFilter(FilterBase):
         """
         self.apply(witness, target, update_state=True)
 
-    def apply(self, witness:Iterable[float]|Iterable[Iterable[float]], target:Iterable[float]=None, pad:bool=True, update_state:bool=False) -> Iterable[float]:
+    def apply(self,
+              witness:Iterable[float]|Iterable[Iterable[float]],
+              target:Iterable[float]=None,
+              pad:bool=True,
+              update_state:bool=False) -> Iterable[float]:
         """ Apply the filter to input data
 
         :param witness: Witness sensor data
@@ -74,8 +83,8 @@ class PolynomialLMSFilter(FilterBase):
         witness, target = self.check_data_dimensions(witness, target)
         assert target is not None, "Target data must be supplied"
 
-        offset_target = self.N_filter - self.idx_target - 1
-        pred_length = len(target) - self.N_filter + 1
+        offset_target = self.n_filter - self.idx_target - 1
+        pred_length = len(target) - self.n_filter + 1
 
         filter_state = self.filter_state if update_state else np.array(self.filter_state)
 
@@ -83,22 +92,23 @@ class PolynomialLMSFilter(FilterBase):
         prediction = []
         for idx in range(0, pred_length):
             # make prediction
-            X = witness[:,idx:idx+self.N_filter] # input to predcition
-            pred = sum( np.einsum('ij,ij->', filter_state[i], X**(i+1)) for i in range(self.order))
+            w_sel = witness[:,idx:idx+self.n_filter] # input to predcition
+            pred = sum( np.einsum('ij,ij->', filter_state[i], w_sel**(i+1)) for i in range(self.order))
             err = target[idx+offset_target] - pred
 
             prediction.append(pred)
 
             # update filter
             if self.normalized:
-                norm = np.einsum('ij,ij->', X, X)
+                norm = np.einsum('ij,ij->', w_sel, w_sel)
                 if norm < 0:
                     raise ValueError('Overflow! You are probably passing integers of insufficient precision to this function.')
                 for i in range(self.order):
-                    filter_state[i] += 2*self.step_scale*err*X**(i+1) / norm**((i+2)/2) # TODO: this might not be the correct normalization
+                    # NOTE: this might not be the correct/optimal normalization
+                    filter_state[i] += 2*self.step_scale*err*w_sel**(i+1) / norm**((i+2)/2)
             else:
                 for i in range(self.order):
-                    filter_state[i] += 2*self.step_scale*err*X**(i+1)
+                    filter_state[i] += 2*self.step_scale*err*w_sel**(i+1)
 
             if self.coefficient_clipping is not None:
                 filter_state = np.clip(filter_state, -self.coefficient_clipping, self.coefficient_clipping)
@@ -112,4 +122,3 @@ class PolynomialLMSFilter(FilterBase):
                 ])
 
         return prediction
-
