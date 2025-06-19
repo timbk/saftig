@@ -3,6 +3,10 @@ from typing import Iterable, Union
 
 import numpy as np
 
+def total_power(A:Iterable[float]):
+    """ calculate the total power of a signal (square or RMS) """
+    return float(np.mean(np.square(A)))
+
 def RMS(A:Iterable[float]):
     """ Calculate the root mean square value of an array """
 	# float() is used to convert this into a standard float instead of a 0D numpy array

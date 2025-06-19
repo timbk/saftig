@@ -3,6 +3,8 @@ from typing import Iterable
 
 import numpy as np
 
+from .common import RMS, total_power
+
 class TestDataGenerator:
     """Generate simple test data for correlated noise mitigation techniques
     The channel count is implicitly defined by the shape of witness_noise_level
@@ -55,3 +57,39 @@ class TestDataGenerator:
 
         return  (t_c + w_n) * self.transfer_function, \
                 (t_c + t_n)
+
+def residual_power_ratio(target:Iterable[float],
+                         prediction:Iterable[float],
+                         start:int|None=None,
+                         stop:int|None=None,
+                         remove_dc:bool=True):
+    """Calculate the ratio between residual power of the residual and the target signal
+
+    :param target: target signal array
+    :param prediction: prediction array (same length as target
+    :param start: use only a section of the arrays, start at this index
+    :param stop: use only a section of the arrays, stop at this index
+    :param remove DC component: remove DC component before calculation
+    """
+    target = np.array(target[start:stop])
+    prediction = np.array(prediction[start:stop])
+    assert target.shape == prediction.shape
+
+    if remove_dc:
+        target -= np.mean(target)
+        prediction -= np.mean(prediction)
+
+    residual = prediction - target
+
+    return float(total_power(residual) / total_power(target))
+
+def residual_amplitude_ratio(*args, **kwargs):
+    """Calculate the ratio between residual amplitude of the residual and the target signal
+
+    :param target: target signal array
+    :param prediction: prediction array (same length as target
+    :param start: use only a section of the arrays, start at this index
+    :param stop: use only a section of the arrays, stop at this index
+    :param remove DC component: remove DC component before calculation
+    """
+    return float(np.sqrt(residual_power_ratio(*args, **kwargs)))

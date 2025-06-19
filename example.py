@@ -53,6 +53,7 @@ if __name__ == "__main__":
 
     ic(saftig.RMS(t[2000:]))
     ic(saftig.RMS((t-pred)[2000:]))
+    ic(saftig.residual_amplitude_ratio(t, pred, start=2000))
 
 
     plt.figure()
