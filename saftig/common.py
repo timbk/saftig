@@ -4,7 +4,14 @@ from typing import Iterable, Union
 import numpy as np
 
 def total_power(A:Iterable[float]):
-    """ calculate the total power of a signal (square or RMS) """
+    """calculate the total power of a signal (square or RMS)
+
+    >>> import saftig, numpy
+    >>> signal = numpy.ones(10) * 2
+    >>> saftig.total_power(signal)
+    4.0
+
+    """
     return float(np.mean(np.square(A)))
 
 def RMS(A:Iterable[float]):

@@ -3,7 +3,7 @@ SHELL := /bin/bash
 all: doc testing linter
 
 test:
-	cd testing && python testing.py
+	python -m unittest discover .
 
 linter:
 	./tooling/run_linter.sh

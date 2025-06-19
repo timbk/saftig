@@ -1,13 +1,10 @@
-from typing import Iterable
 import unittest
-from scipy.signal import welch
 import numpy as np
 from icecream import ic
 
 import saftig as sg
 
-def calc_mean_asd(A:Iterable[float], sample_rate:float=1.):
-    return np.sqrt(np.mean(welch(A, fs=sample_rate)[1]))
+from .toolbox import calc_mean_asd
 
 class TestTestDataGenerator(unittest.TestCase): # yup, this is what my naming scheme yields :(
     def test_output_shapes(self):
