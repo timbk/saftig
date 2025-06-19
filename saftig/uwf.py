@@ -18,6 +18,17 @@ class UpdatingWienerFilter(FilterBase):
     :param N_channel: Number of witness sensor channels
     :param context_pre: how many additional samples before the current block are used to update the filters
     :param context_post: how many additional samples after the current block are used to update the filters
+
+
+    >>> import saftig as sg
+    >>> N_filter = 128
+    >>> witness, target = sg.TestDataGenerator(0.1).generate(int(1e5))
+    >>> filt = sg.UpdatingWienerFilter(N_filter, 0, 1, context_pre=20*N_filter, context_post=20*N_filter)
+    >>> prediction = filt.apply(witness, target) # check on the data used for conditioning
+    >>> residual_rms = sg.RMS(target-prediction)
+    >>> residual_rms > 0.05 and residual_rms < 0.15 # the expected RMS in this test scenario is 0.1
+    True
+
     """
 
     #: The FIR coefficients of the WF
@@ -56,14 +67,12 @@ class UpdatingWienerFilter(FilterBase):
 
             # apply
             p = wf_apply(self.filter_state, witness[:,idx-self.N_filter+1:min(idx+self.N_filter, len(target))])
-            ic(p.shape)
             prediction += list(p)
 
         if not all_full_rank:
             print('Warning: not all UWF calculations had full rank')
 
         if pad:
-            ic(len(prediction))
             prediction = np.concatenate([np.zeros(self.N_filter-self.idx_target), prediction, np.zeros(self.idx_target)])
         return prediction
 
