@@ -1,6 +1,8 @@
+import sys
 import unittest, doctest
-import saftig
-from icecream import ic
+import saftig as sg
+
+import test_evaluation
 
 '''
 TODO:
@@ -12,17 +14,18 @@ TODO:
 '''
 
 module_list = [
-    saftig.common,
-    saftig.evaluation,
-    saftig.wf,
-    saftig.uwf,
-    saftig.lms,
-    saftig.polylms,
+    sg.common,
+    sg.evaluation,
+    sg.wf,
+    sg.uwf,
+    sg.lms,
+    sg.polylms,
 ]
 
 if __name__ == "__main__":
-    suite = unittest.TestSuite()
+    suite = unittest.TestLoader().discover('.')
 
+    # load unittests
     for module in module_list:
         suite.addTest(doctest.DocTestSuite(module))
 
