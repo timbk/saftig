@@ -1,9 +1,10 @@
 """Collection of tools for the evaluation and testing of filters"""
-from typing import Iterable
+from typing import Iterable, Union
+from timeit import timeit
 
 import numpy as np
 
-from .common import total_power
+from .common import total_power, FilterBase
 
 class TestDataGenerator:
     """Generate simple test data for correlated noise mitigation techniques
@@ -66,6 +67,49 @@ class TestDataGenerator:
 
         return  (t_c + w_n) * self.transfer_function, \
                 (t_c + t_n)
+
+
+def measure_runtime(filter_classes:Iterable[FilterBase],
+                    n_samples:int=int(1e4),
+                    n_filter:int=128,
+                    idx_target:int=0,
+                    n_channel:int=1,
+                    additional_filter_settings:Iterable[dict]|None=None,
+                    repititions:int=1) -> Union[Iterable[float], Iterable[float]]:
+    """ Measure the runtime of filers for a specific scenario
+
+    :param n_samples: Length of the test data
+    :param n_filter: Length of the FIR filters / input block size
+    :param idx_target: Position of the prediction
+    :param n_channel: Number of witness sensor channels
+    :param additional_filter_settings: optional settings passed to the filters 
+    :param repititions: how manu repititions to perform during the timing measurement
+
+    :return: (time_conditioning, time_apply) each in seconds
+    """
+    if additional_filter_settings is None:
+        additional_filter_settings = [{}]*len(filter_classes)
+    assert len(additional_filter_settings) == len(filter_classes)
+
+    witness, target = TestDataGenerator([0.1]*n_channel).generate(n_samples)
+
+    times_conditioning = []
+    times_apply = []
+
+    def time_filter(filter_class, args):
+        """ wrapper function to make closures work correctly """
+        filt = filter_class(n_filter, idx_target, n_channel, **args)
+        t_cond = timeit(lambda: filt.condition(witness, target), number=repititions)
+        t_pred = timeit(lambda: filt.apply(witness, target), number=repititions)
+        return t_cond/repititions, t_pred/repititions
+
+    for fc, args in zip(filter_classes, additional_filter_settings):
+        t_cond, t_pred = time_filter(fc, args)
+        times_conditioning.append(t_cond)
+        times_apply.append(t_pred)
+
+    return times_conditioning, times_apply
+
 
 def residual_power_ratio(target:Iterable[float],
                          prediction:Iterable[float],

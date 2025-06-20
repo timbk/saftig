@@ -6,6 +6,7 @@ from .evaluation import (
     TestDataGenerator,
     residual_power_ratio,
     residual_amplitude_ratio,
+    measure_runtime,
 )
 
 from .wf import WienerFilter
