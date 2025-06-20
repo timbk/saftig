@@ -77,6 +77,7 @@ def measure_runtime(filter_classes:Iterable[FilterBase],
                     additional_filter_settings:Iterable[dict]|None=None,
                     repititions:int=1) -> Union[Iterable[float], Iterable[float]]:
     """ Measure the runtime of filers for a specific scenario
+    Be aware that this gives no feedback upon how much multithreading is used!
 
     :param n_samples: Length of the test data
     :param n_filter: Length of the FIR filters / input block size
@@ -87,8 +88,10 @@ def measure_runtime(filter_classes:Iterable[FilterBase],
 
     :return: (time_conditioning, time_apply) each in seconds
     """
+    filter_classes = list(filter_classes)
     if additional_filter_settings is None:
         additional_filter_settings = [{}]*len(filter_classes)
+    additional_filter_settings = list(additional_filter_settings)
     assert len(additional_filter_settings) == len(filter_classes)
 
     witness, target = TestDataGenerator([0.1]*n_channel).generate(n_samples)

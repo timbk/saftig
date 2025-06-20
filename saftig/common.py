@@ -55,6 +55,7 @@ class FilterBase:
     :param n_channel: Number of witness sensor channels
     """
     filter_state = None
+    filter_name:str|None = None
 
     def __init__(self, n_filter:int, idx_target:int, n_channel:int=1):
         self.n_filter = n_filter
@@ -65,6 +66,7 @@ class FilterBase:
         assert self.n_channel > 0, "n_filter must be a positive integer"
         assert self.idx_target >= 0 and self.idx_target < self.n_filter, \
                 "idx_target must not be negative and smaller than n_filter"
+        assert self.filter_name is not None, "BaseFilter childs must set their name"
 
     def condition(self,
                   witness:Iterable[float]|Iterable[Iterable[float]],

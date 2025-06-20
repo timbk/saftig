@@ -31,6 +31,7 @@ class PolynomialLMSFilter(FilterBase):
 
     #: The current FIR coefficients of the LMS filter
     filter_state:Iterable[Iterable[Iterable[float]]]|None = None
+    filter_name = "PolyLMS"
 
     def __init__(self,
                  n_filter:int,

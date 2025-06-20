@@ -27,6 +27,7 @@ class LMSFilter(FilterBase):
 
     #: The current FIR coefficients of the LMS filter
     filter_state:Iterable[Iterable[float]]|None = None
+    filter_name = "LMS"
 
     def __init__(self,
                  n_filter:int,

@@ -99,6 +99,7 @@ class WienerFilter(FilterBase):
 
     #: The FIR coefficients of the WF
     filter_state:Iterable[Iterable[float]]|None = None
+    filter_name = "WF"
 
     def condition(self,
                   witness:Iterable[float]|Iterable[Iterable[float]],

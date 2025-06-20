@@ -30,6 +30,7 @@ class UpdatingWienerFilter(FilterBase):
 
     #: The FIR coefficients of the WF
     filter_state:Iterable[Iterable[float]]|None = None
+    filter_name = "UWF"
 
     def __init__(self,
                  n_filter:int,
