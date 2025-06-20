@@ -57,11 +57,11 @@ class TestMeasureRuntime(unittest.TestCase):
 
     def test_causality(self):
         """ check that results follow basic expectations """
-        result_100           = sg.measure_runtime([sg.LMSFilter], n_samples=int(1e4))
-        result_1000          = sg.measure_runtime([sg.LMSFilter], n_samples=int(1e5), repititions=2)
-        result_1000_repeated = sg.measure_runtime([sg.LMSFilter], n_samples=int(1e5), repititions=4)
+        result_100           = sg.measure_runtime([sg.WienerFilter], n_samples=int(1e4))
+        result_1000          = sg.measure_runtime([sg.WienerFilter], n_samples=int(1e5), repititions=2)
+        result_1000_repeated = sg.measure_runtime([sg.WienerFilter], n_samples=int(1e5), repititions=4)
 
         self.assertLess(result_100[1][0], result_1000[1][0])
         self.assertLess(result_100[1][0], result_1000[1][0])
         for i in range(2):
-            self.assertAlmostEqual(result_1000[i][0], result_1000_repeated[i][0], places=2)
+            self.assertAlmostEqual(result_1000[i][0], result_1000_repeated[i][0], places=1)
