@@ -18,10 +18,13 @@ extensions = ['sphinx.ext.autodoc', 'sphinx.ext.mathjax']
 templates_path = ['_templates']
 exclude_patterns = []
 
-
+autodoc_typehints = "description"
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'classic'
+html_theme = 'nature'
 html_static_path = ['_static']
+html_theme_options = {
+    "sidebarwidth": "350px",
+}
