@@ -61,13 +61,14 @@ class TestFilter:
         n_filter = 128
         witness, target = sg.TestDataGenerator([0.1]*2).generate(int(1e4))
 
-        for filt in self.instantiate_filters(n_filter, n_channel=2):
-            with warnings.catch_warnings(): # warnings are expected here
-                warnings.simplefilter("ignore")
-                filt.condition(witness, target)
+        for idx_target in [0, int(n_filter/2), n_filter-1]:
+            for filt in self.instantiate_filters(n_filter, n_channel=2, idx_target=idx_target):
+                with warnings.catch_warnings(): # warnings are expected here
+                    warnings.simplefilter("ignore")
+                    filt.condition(witness, target)
 
-            prediction = filt.apply(witness, target)
-            residual = sg.RMS((target - prediction)[3000:])
+                prediction = filt.apply(witness, target)
+                residual = sg.RMS((target - prediction)[3000:])
 
-            self.assertGreater(residual, 0.05)
-            self.assertLess(residual, 0.15)
+                self.assertGreater(residual, 0.05)
+                self.assertLess(residual, 0.15)
