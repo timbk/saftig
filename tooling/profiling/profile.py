@@ -1,7 +1,11 @@
+MULTITHREAD = True
+
+from typing import Iterable
 import saftig as sg
 import numpy as np
+from icecream import ic
 
-DEBUG = False
+DEBUG = True
 IGNORE_FILTER_OPTIONS = {'coefficient_clipping', 'step_scale'}
 
 # filter, additional_filter_config, skip_conditioning
@@ -18,44 +22,101 @@ FILTER_CONFIGURATIONS = [
 
 if DEBUG:
     FILTER_CONFIGURATIONS = [
-            (sg.WienerFilter, {}),
-            (sg.LMSFilter, {'normalized': True}),
-            (sg.UpdatingWienerFilter, {'context_pre': 1000}, True),
+            (sg.WienerFilter, {}, False),
+            (sg.LMSFilter, {'normalized': True}, False),
+            #(sg.UpdatingWienerFilter, {'context_pre': 1000}, True),
     ]
 
-def additional_filter_config_to_str(conf):
-    if len(conf) == 0:
-        return ''
-    return '('+', '.join(f'{k}={v}' for k, v in conf.items() if k not in IGNORE_FILTER_OPTIONS)+')'
-filter_configuration_strings = [f'{fc.filter_name} {additional_filter_config_to_str(settings)}' for fc, settings, _ignore_conditioning in FILTER_CONFIGURATIONS ]
+def filter_configs_to_str(configs):
+    """ build documenting strings for the given list of configuations """
+    def additional_filter_config_to_str(conf):
+        if len(conf) == 0:
+            return ''
+        return '('+', '.join(f'{k}={v}' for k, v in conf.items() if k not in IGNORE_FILTER_OPTIONS)+')'
+    return [f'{fc.filter_name} {additional_filter_config_to_str(settings)}' for fc, settings, _ignore_conditioning in configs]
+filter_configuration_strings = filter_configs_to_str(FILTER_CONFIGURATIONS)
 
+def run_profiling(config, n_samples, n_filter, n_channel, idx_target=0):
+    """ execute a profiling run for specific configuration for a list of filter configurations
+    to unwrap config list and replace irrelevant restuls with nans
 
-def run_profiling(config, n_samples, n_filter, n_channel):
+    :param config: filter configurations as a list of (filter_instance, additional_filter_params, clear_conditioning_runtime)
+                    setting clear_conditioning_runtime to True will set the conditioning runtime to np.nan
+    :params n_samples, n_filter, n_channel, idx_target: passed on to saftig.measure_runtime()
+    """
     filters = map(lambda x: x[0], config)
     additional_settings = map(lambda x: x[1], config)
     skip_conditioning = list(map(lambda x: x[2], config))
 
-    results = sg.measure_runtime(filters, n_samples, n_filter=n_filter, n_channel=n_channel, additional_filter_settings=additional_settings)
+    results = sg.measure_runtime(filters, n_samples, n_filter=n_filter, n_channel=n_channel, additional_filter_settings=additional_settings, idx_target=idx_target)
     results = np.array(results)
     results[0,skip_conditioning] = np.nan
     return results
 
-def profiling_scan_n_filter(values = [10, 30, 100, 300, 1000]):
-    filter_configs = FILTER_CONFIGURATIONS
-    n_samples = int(1e4)
-    n_channel = 1
+def profiling_scan(target:str,
+                   target_values:Iterable[float],
+                   other_values:dict,
+                   filter_configs) -> np.array:
+    """ scan through one variable and record the runtime of the selected filters
+
+    :param target: the target variable; one of 'n_filter', 'n_samples', 'idx_target', 'n_channel'
+    :param target_values: the list of values for the target parameter
+    :param other_values: dict of remaining values (may contain the target, but that value will be overwritten)
+    :param filter_configs: The filter configuration as required by run_profiling
+
+    :return: list of run_profiling results as processing rate in Sps
+            array dimensions: (target_value, stage, filter_method)
+            stage is conditioning=0, applying=1
+    :raises: AssertionError
+    """
+    all_values = ['n_filter', 'n_samples', 'idx_target', 'n_channel']
+    assert target in all_values, f"target must be one of {all_values}"
+    for key in all_values:
+        assert (key == target) or (key in other_values), f"A {key} must be provided through target_values"
 
     results = []
-    for n_filter in values:
-        print(f'n_filter = {n_filter}')
-        res = run_profiling(filter_configs, n_samples, n_filter, n_channel)
-        results.append(n_samples/np.array(res))
-    return results
+    for target_value in target_values:
+        other_values[target] = target_value
+
+        result = run_profiling(filter_configs, **other_values)
+        results.append(other_values['n_samples']/result)
+    other_values = tuple((k, v) for k, v in other_values.items() if k!=target)
+    return {'target': target,
+            'target_values': target_values,
+            'results': np.array(results),
+            'filter_configs': filter_configs_to_str(filter_configs),
+            'other_values': other_values,
+            }
+
+def run_and_save_scan(target, values, default_values, filter_config, **file_additions):
+    results = profiling_scan(target, values, default_values, filter_config)
+    np.savez('results/results_n_filter.npz', multithreaded=MULTITHREAD, **results, **file_additions)
 
 def main():
+    default_values = {'n_samples':int(1e4), 'n_channel': 1, 'n_filter': 128, 'idx_target': 0}
+
+    print('n_filter')
     n_filter_values = [10, 30, 100, 300, 1000]
-    n_filter_scan_results = profiling_scan_n_filter(n_filter_values)
-    np.savez('profiling_results.npz', n_filter_scan = n_filter_scan_results, n_filter_values=n_filter_values, filter_configurations=filter_configuration_strings)
+    run_and_save_scan('n_filter', n_filter_values, default_values, FILTER_CONFIGURATIONS)
+
+    print('n_channel')
+    n_channel_values = [1, 2, 3]
+    run_and_save_scan('n_channel', n_channel_values, default_values, FILTER_CONFIGURATIONS)
+    '''
+    print('n_filter scan')
+    n_filter_values = [10, 30, 100, 300, 1000]
+    n_filter_scan_results = profiling_scan('n_filter', n_filter_values, default_values, FILTER_CONFIGURATIONS)
+    np.savez('results/results_n_filter.npz', **n_filter_scan_results)
+
+    # n_samples_values = np.array([3e3, 1e4, 3e4, 1e5], dtype=np.int64)
+    # n_samples_scan_results = profiling_scan('n_samples', n_samples_values, default_values, FILTER_CONFIGURATIONS)
+    # np.savez('results/results_n_samples.npz', **n_samples_scan_results)
+
+    print('n_channel scan')
+    n_channel_values = [1, 2, 3]
+    n_channel_scan_results = profiling_scan('n_channel', n_channel_values, default_values, FILTER_CONFIGURATIONS)
+    np.savez(f'results/results_n_channel_{"MT" if multithread else "ST"}.npz', x_log=False, multithreaded=multithread, **n_channel_scan_results)
+    '''
 
 if __name__ == "__main__":
     main()
