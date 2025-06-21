@@ -11,8 +11,8 @@ IGNORE_FILTER_OPTIONS = {'coefficient_clipping', 'step_scale'}
 # filter, additional_filter_config, skip_conditioning
 FILTER_CONFIGURATIONS = [
     (sg.WienerFilter, {}, False),
-    (sg.UpdatingWienerFilter, {'context_pre': 1000}, True),
-    (sg.UpdatingWienerFilter, {'context_pre': 2000}, True),
+    (sg.UpdatingWienerFilter, {'context_pre': 300}, True),
+    (sg.UpdatingWienerFilter, {'context_pre': 300}, True),
     (sg.LMSFilter, {'normalized': True, 'coefficient_clipping': 10}, False),
     (sg.LMSFilter, {'normalized': False, 'coefficient_clipping': 10, 'step_scale': 0.001}, False),
     (sg.PolynomialLMSFilter, {'order': 1, 'coefficient_clipping': 10}, False),
@@ -24,7 +24,7 @@ if DEBUG:
     FILTER_CONFIGURATIONS = [
             (sg.WienerFilter, {}, False),
             (sg.LMSFilter, {'normalized': True}, False),
-            #(sg.UpdatingWienerFilter, {'context_pre': 1000}, True),
+            (sg.UpdatingWienerFilter, {'context_pre': 1000}, True),
     ]
 
 def filter_configs_to_str(configs):
@@ -90,33 +90,27 @@ def profiling_scan(target:str,
 
 def run_and_save_scan(target, values, default_values, filter_config, **file_additions):
     results = profiling_scan(target, values, default_values, filter_config)
-    np.savez('results/results_n_filter.npz', multithreaded=MULTITHREAD, **results, **file_additions)
+    np.savez(f'results/results_{target}_{"mt" if MULTITHREAD else "st"}.npz',
+             multithreaded=MULTITHREAD,
+             **results,
+             **file_additions)
 
 def main():
-    default_values = {'n_samples':int(1e4), 'n_channel': 1, 'n_filter': 128, 'idx_target': 0}
 
     print('n_filter')
+    default_values = {'n_samples':int(1e4), 'n_channel': 1, 'n_filter': 128, 'idx_target': 0}
     n_filter_values = [10, 30, 100, 300, 1000]
     run_and_save_scan('n_filter', n_filter_values, default_values, FILTER_CONFIGURATIONS)
 
     print('n_channel')
+    default_values = {'n_samples':int(1e4), 'n_channel': 1, 'n_filter': 32, 'idx_target': 0}
     n_channel_values = [1, 2, 3]
-    run_and_save_scan('n_channel', n_channel_values, default_values, FILTER_CONFIGURATIONS)
-    '''
-    print('n_filter scan')
-    n_filter_values = [10, 30, 100, 300, 1000]
-    n_filter_scan_results = profiling_scan('n_filter', n_filter_values, default_values, FILTER_CONFIGURATIONS)
-    np.savez('results/results_n_filter.npz', **n_filter_scan_results)
+    run_and_save_scan('n_channel', n_channel_values, default_values, FILTER_CONFIGURATIONS, x_log=False)
 
-    # n_samples_values = np.array([3e3, 1e4, 3e4, 1e5], dtype=np.int64)
-    # n_samples_scan_results = profiling_scan('n_samples', n_samples_values, default_values, FILTER_CONFIGURATIONS)
-    # np.savez('results/results_n_samples.npz', **n_samples_scan_results)
-
-    print('n_channel scan')
-    n_channel_values = [1, 2, 3]
-    n_channel_scan_results = profiling_scan('n_channel', n_channel_values, default_values, FILTER_CONFIGURATIONS)
-    np.savez(f'results/results_n_channel_{"MT" if multithread else "ST"}.npz', x_log=False, multithreaded=multithread, **n_channel_scan_results)
-    '''
+    print('n_samples')
+    default_values = {'n_samples':int(1e4), 'n_channel': 1, 'n_filter': 32, 'idx_target': 0}
+    n_samples_values = np.array([1e3, 3e3, 1e4, 3e4], dtype=np.int64)
+    run_and_save_scan('n_samples', n_samples_values, default_values, FILTER_CONFIGURATIONS)
 
 if __name__ == "__main__":
     main()
