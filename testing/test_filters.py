@@ -1,35 +1,40 @@
-import unittest
-from scipy.signal import welch
-import numpy as np
-from icecream import ic
-import io, contextlib
+from typing import Iterable
 import warnings
 
 import saftig as sg
 
-
-
 class TestFilter:
-    """ wrapper class for """
-    def set_target(self, target_filter, default_filter_parameters=[{}]):
-        assert type(default_filter_parameters) == list
+    """ Parent class for all filter testingr
+    Contains common test cases and testing tools
+    """
+    #: The to-be-tested filter class
+    target_filter = None
+    #: to-be-tested configurations
+    default_filter_parameters = None
+
+    def __ini__(self):
+        raise RuntimeError("This only functions as a parent class!")
+
+    def set_target(self, target_filter, default_filter_parameters=None) -> None:
+        """ set the target filter and configurtions
+        This is required to run the common tests
+
+        :param target_filter: The to-be-tested filter class
+        :param default_filter_parameters: A list of all configuration for which the tests will be run
+        """
+        if default_filter_parameters is None:
+            default_filter_parameters = [{}]
+        assert isinstance(default_filter_parameters, list)
         self.target_filter = target_filter
         self.default_filter_parameters = default_filter_parameters
 
-    # # a super wild wrapper to check stdout output; not needed anymore as I switched to using warnings
-    # def get_stdout(self, cmd, parameter=None):
-    #     """ execute the given function call string with exec(), return the return value and the stdout string """
-    #     f = io.StringIO()
-    #     returnvalue = None
-    #     with contextlib.redirect_stdout(f):
-    #         exec('returnvalue = '+cmd)
-    #     return returnvalue, f.getvalue()
-
-    def instantiate_filters(self, n_filter=128, idx_target=0, n_channel=1):
+    def instantiate_filters(self, n_filter=128, idx_target=0, n_channel=1) -> Iterable[sg.common.FilterBase]:
+        """ instantiate the target filter for all configurations """
         for parameters in self.default_filter_parameters:
             yield self.target_filter(n_filter, idx_target, n_channel, **parameters)
 
     def test_exception_on_missshaped_input(self):
+        """ check that matching exceptions are thrown for obviously wrong input shapes """
         n_filter = 128
         witness, target = sg.TestDataGenerator(0.1).generate(int(1e4))
 
@@ -41,6 +46,7 @@ class TestFilter:
             self.assertRaises(ValueError, filt.apply, [[[1], [1]]], [1])
 
     def test_acceptance_of_minimum_input_length(self):
+        """ check that the filter works with the minimum input length of two filter lengths """
         n_filter = 128
         witness, target = sg.TestDataGenerator(0.1).generate(n_filter*2)
 
@@ -51,6 +57,7 @@ class TestFilter:
                 filt.apply(witness, target)
 
     def test_output_shapes(self):
+        """ check output shapes """
         n_filter = 128
         witness, target = sg.TestDataGenerator(0.1).generate(int(1e4))
 
@@ -68,6 +75,7 @@ class TestFilter:
             self.assertEqual(len(prediction), len(target) - n_filter + 1)
 
     def test_performance(self):
+        """ check that the filter reaches a WF-Like performance on a simple static test case """
         n_filter = 128
         witness, target = sg.TestDataGenerator([0.1]*2).generate(int(1e4))
 

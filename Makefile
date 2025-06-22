@@ -11,6 +11,9 @@ cweb:
 
 linter:
 	./tooling/run_linter.sh
+linter_testing:
+	./tooling/run_linter_tests.sh
+lt: linter_testing
 
 doc: doc/source/* doc/*
 	cd doc/ && $(MAKE) html
@@ -18,4 +21,4 @@ doc: doc/source/* doc/*
 view: doc
 	open doc/build/html/index.html
 
-.PHONY: all, doc, view, test, linter, coverage, cweb
+.PHONY: all, doc, view, test, linter, coverage, cweb, linter_testing, lt

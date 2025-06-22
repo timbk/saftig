@@ -5,6 +5,7 @@ import saftig as sg
 from .test_filters import TestFilter
 
 class TestPolynomialLMSFilter(unittest.TestCase, TestFilter):
+    """ tests for the polynomial vaiant of a LeastMeanSquares filter implementation """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 

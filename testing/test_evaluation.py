@@ -1,12 +1,12 @@
 import unittest
 import numpy as np
-from icecream import ic
 
 import saftig as sg
 
 from .toolbox import calc_mean_asd
 
 class TestTestDataGenerator(unittest.TestCase): # yup, this is what my naming scheme yields :(
+    """ Test cases for the test data generator"""
     def test_output_shapes(self):
         """ check that the generated data has the correct shape """
         N_channels = 4
@@ -47,6 +47,7 @@ class TestResidualAmplitudeRatio(unittest.TestCase):
     """ tests for residual_amplitude_ratio() and indirectly for residual_power_ratio() """
 
     def test_dc_removal(self):
+        """ test that the remove_dc parameter is habdled correctly """
         a = np.array([3, 4])
         b = np.array([np.sqrt(.5), -np.sqrt(0.5)])
         self.assertAlmostEqual(sg.residual_amplitude_ratio(a, a+b, remove_dc=False), 1/5)

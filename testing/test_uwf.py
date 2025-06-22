@@ -5,18 +5,21 @@ import saftig as sg
 from .test_filters import TestFilter
 
 class TestUpdatingWienerFilter(unittest.TestCase, TestFilter):
+    """ Test cases for the UWF """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.set_target(sg.UpdatingWienerFilter, [{'context_pre': 128*40, 'context_post': 128*40}])
 
     def test_conditioning_warning(self):
+        """ check that a warning is thrown if the conditioning function is caled """
         n_filter = 128
         witness, target = sg.TestDataGenerator([0.1]).generate(int(1e4))
 
         for filt in self.instantiate_filters(n_filter, n_channel=2):
             self.assertWarns(RuntimeWarning, filt.condition, witness, target)
 
-    def test_conditioning_warning(self):
+    def test_non_full_rank_warning(self):
+        """ check that a warning is thrown if a filter does not have full rank """
         n_filter = 128
         n_channel = 2
         witness, target = sg.TestDataGenerator([0.1]).generate(int(1e4))
@@ -28,6 +31,7 @@ class TestUpdatingWienerFilter(unittest.TestCase, TestFilter):
             self.assertWarns(RuntimeWarning, filt.apply, witness, target)
 
     def test_acceptance_of_minimum_input_length_different_context_length(self):
+        """ test that the minimum input length is accepter for different context values """
         n_filter = 128
         witness, target = sg.TestDataGenerator([0.1]).generate(n_filter*2)
 

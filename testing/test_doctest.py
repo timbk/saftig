@@ -1,5 +1,4 @@
-import sys
-import unittest, doctest
+import doctest
 import saftig as sg
 
 module_list = [
@@ -11,7 +10,8 @@ module_list = [
     sg.polylms,
 ]
 
-def load_tests(loader, tests, ignore):
+def load_tests(_loader, tests, _ignore):
+    """ load doctests as unittests """
     for module in module_list:
         tests.addTests(doctest.DocTestSuite(module))
     return tests
