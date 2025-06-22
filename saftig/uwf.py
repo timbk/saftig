@@ -68,23 +68,31 @@ class UpdatingWienerFilter(FilterBase):
         witness, target = self.check_data_dimensions(witness, target)
 
         all_full_rank = True
+        additional_padding = 0
         prediction = []
         for idx in range(self.n_filter-1, len(target), self.n_filter):
             # calculate filter coefficients
             selection_conditioning = np.arange(max(0, idx-self.context_pre), min(len(target), idx+self.n_filter+self.context_post))
+            if len(selection_conditioning) < self.n_filter:
+                additional_padding = len(selection_conditioning)
+                break
             self.filter_state, full_rank = wf_calculate(witness[:,selection_conditioning],
                                                         target[selection_conditioning],
                                                         self.n_filter,
                                                         idx_target=self.idx_target)
-            all_full_rank &= full_rank
+            all_full_rank &= full_rank # a numpy bool doesn't mix well with non-numpy here
 
             # apply
-            p = wf_apply(self.filter_state, witness[:,idx-self.n_filter+1:min(idx+self.n_filter, len(target))])
+            w_sel = witness[:,max(0, idx-self.n_filter+1):min(idx+self.n_filter, len(target))]
+            if w_sel.shape[1] < self.n_filter:
+                additional_padding = w_sel.shape[1]
+                break
+            p = wf_apply(self.filter_state, w_sel)
             prediction += list(p)
 
         if not all_full_rank:
-            print('Warning: not all UWF calculations had full rank')
+            warn('Warning: not all UWF blocks had full rank', RuntimeWarning)
 
         if pad:
-            prediction = np.concatenate([np.zeros(self.n_filter-1-self.idx_target), prediction, np.zeros(self.idx_target)])
+            prediction = np.concatenate([np.zeros(self.n_filter-1-self.idx_target), prediction, np.zeros(self.idx_target + additional_padding)])
         return prediction

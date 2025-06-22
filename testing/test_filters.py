@@ -40,6 +40,16 @@ class TestFilter:
             self.assertRaises(ValueError, filt.apply, 1, 1)
             self.assertRaises(ValueError, filt.apply, [[[1], [1]]], [1])
 
+    def test_acceptance_of_minimum_input_length(self):
+        n_filter = 128
+        witness, target = sg.TestDataGenerator(0.1).generate(n_filter*2)
+
+        for filt in self.instantiate_filters(n_filter):
+            with warnings.catch_warnings(): # warnings are expected here
+                warnings.simplefilter("ignore")
+                filt.condition(witness, target)
+                filt.apply(witness, target)
+
     def test_output_shapes(self):
         n_filter = 128
         witness, target = sg.TestDataGenerator(0.1).generate(int(1e4))

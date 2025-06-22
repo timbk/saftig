@@ -10,6 +10,7 @@ from .common import FilterBase, make_2d_array
 def mean_cross_correlation_offset(A, B, N, offset):
     """ estimate the cross-correlation between A and B """
     assert len(A) == len(B)
+    assert offset < N
 
     if offset < N-1:
         return correlate(A, B[offset:-N+1+offset], mode='valid')
@@ -31,7 +32,7 @@ def wf_calculate(witness:Iterable[float]|Iterable[Iterable[float]],
     target = np.array(target)
     witness = make_2d_array(witness)
     assert witness.shape[1] == target.shape[0], "Missmatch between witness and target data shape"
-    assert n_filter <= target.shape[0], "Input data must be at least as long as the filter"
+    assert n_filter <= target.shape[0], "Input data must be at least one filter length"
 
     # calculate input autocorrelation and cross-correlation to target
     R_ws = [mean_cross_correlation_offset(target, A, n_filter, idx_target) for A in witness] # R_ws[channel, time]
@@ -39,7 +40,7 @@ def wf_calculate(witness:Iterable[float]|Iterable[Iterable[float]],
 
     def calc_r_matrix(A, B, n_filter):
         """ calculate the cross correlation matrix of a and b """
-        cc = correlate(A, B[:-n_filter], mode='valid')
+        cc = correlate(A, B[:-n_filter+1], mode='valid')
         return np.array([np.concatenate([cc[i::-1], cc[1:n_filter-i]]) for i in range(n_filter)])
     def calc_r_matrix_symmetric(A, B, n_filter):
         """ calculate the cross correlation matrix of a and b and average positive and negative lag
@@ -49,7 +50,7 @@ def wf_calculate(witness:Iterable[float]|Iterable[Iterable[float]],
         cc = np.concatenate([ [cc[n_filter]], (cc[n_filter+1:] + cc[n_filter-1::-1])/2 ])
         return np.array([np.concatenate([cc[i::-1], cc[1:n_filter-i]]) for i in range(n_filter)])
 
-    if len(target) >= 3*n_filter: # using both sides is only possible if enugh data is provided
+    if len(target) >= 3*n_filter: # using both sides is only possible if enough data is provided
         R_ww = np.block([[calc_r_matrix_symmetric(A, B, n_filter) for B in witness] for A in witness])
     else:
         R_ww = np.block([[calc_r_matrix(A, B, n_filter) for B in witness] for A in witness])
@@ -63,6 +64,9 @@ def wf_calculate(witness:Iterable[float]|Iterable[Iterable[float]],
     # unwrap into seperate FIR filters
     WFC = WFC.reshape((len(witness), n_filter))
     WFC = np.array([np.flip(i) for i in WFC])
+
+    assert len(WFC[0]) == n_filter, "input data was to short resulting in an incompatible filter"
+
     return WFC, full_rank
 
 def wf_apply(WFC:Iterable[Iterable[float]], witness:Iterable[Iterable[float]]) -> Iterable[Iterable[float]]:
@@ -73,6 +77,7 @@ def wf_apply(WFC:Iterable[Iterable[float]], witness:Iterable[Iterable[float]]) -
 
         :return: prediction
     """
+    assert len(witness[0]) >= len(WFC[0]), "Input minimum lenght is one filter length"
     witness = np.array(witness).astype(np.longdouble)
     return np.sum([correlate(A, WF, mode='valid') for A, WF in zip(witness, WFC)], axis=0)
 
