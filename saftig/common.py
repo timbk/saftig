@@ -1,9 +1,9 @@
 """Shared functionality for all other modules"""
-from typing import Iterable, Union
+from typing import Iterable
 
 import numpy as np
 
-def total_power(A:Iterable[float]):
+def total_power(A:Iterable[float]) -> float:
     """calculate the total power of a signal (square or RMS)
 
     >>> import saftig, numpy
@@ -14,13 +14,13 @@ def total_power(A:Iterable[float]):
     """
     return float(np.mean(np.square(A)))
 
-def RMS(A:Iterable[float]):
+def RMS(A:Iterable[float]) -> float:
     """ Calculate the root mean square value of an array """
 	# float() is used to convert this into a standard float instead of a 0D numpy array
 	# this simplifies writing doctests
     return float(np.sqrt(np.mean(np.square(A))))
 
-def make_2d_array(A:Iterable|Iterable[Iterable]):
+def make_2d_array(A:Iterable|Iterable[Iterable]) -> np.array:
     """add a dimension to 1D arrays and leave 2D arrays as they are
     This is intended to allow 1D array input for single channel application
 
@@ -81,7 +81,7 @@ class FilterBase:
     def apply(self,
               witness:Iterable[float]|Iterable[Iterable[float]],
               target:Iterable[float], pad:bool=True,
-              update_state:bool=False):
+              update_state:bool=False) -> Iterable[float]:
         """ Apply the filter to input data
         
         :param witness: Witness sensor data
@@ -95,13 +95,13 @@ class FilterBase:
 
     def check_data_dimensions(self,
                               witness:Iterable[float]|Iterable[Iterable[float]],
-                              target:Iterable[float]) -> Union[Iterable[Iterable[float]], Iterable[float]]:
+                              target:Iterable[float]) -> tuple[Iterable[Iterable[float]], Iterable[float]]:
         """Check the dimensions of the provided input data and apply make_2d_array()
 
         :param witness: Witness sensor data
         :param target: Target sensor data
 
-        :return: target, witness
+        :return: data as (target, witness)
 
         :raises: AssertionError
         """

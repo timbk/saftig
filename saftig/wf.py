@@ -7,7 +7,7 @@ from scipy.signal import correlate
 
 from .common import FilterBase, make_2d_array
 
-def mean_cross_correlation_offset(A, B, N, offset):
+def mean_cross_correlation_offset(A, B, N, offset) -> Iterable[float]:
     """ estimate the cross-correlation between A and B """
     assert len(A) == len(B)
     assert offset < N

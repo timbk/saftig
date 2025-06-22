@@ -55,7 +55,7 @@ class UpdatingWienerFilter(FilterBase):
               witness:Iterable[float]|Iterable[Iterable[float]],
               target:Iterable[float]=None,
               pad:bool=True,
-              update_state:bool=False):
+              update_state:bool=False) -> Iterable[float]:
         """ Apply the filter to input data
 
         :param witness: Witness sensor data

@@ -1,5 +1,5 @@
 """Collection of tools for the evaluation and testing of filters"""
-from typing import Iterable, Union
+from typing import Iterable
 from timeit import timeit
 
 import numpy as np
@@ -53,7 +53,7 @@ class TestDataGenerator:
         """
         return np.random.normal(0, np.sqrt(self.sample_rate/2), shape)
 
-    def generate(self, N:int):
+    def generate(self, N:int) -> tuple[Iterable[float], Iterable[float]]:
         """Generate sequences of samples
 
         :param N: number of samples
@@ -75,7 +75,7 @@ def measure_runtime(filter_classes:Iterable[FilterBase],
                     idx_target:int=0,
                     n_channel:int=1,
                     additional_filter_settings:Iterable[dict]|None=None,
-                    repititions:int=1) -> Union[Iterable[float], Iterable[float]]:
+                    repititions:int=1) -> tuple[Iterable[float], Iterable[float]]:
     """ Measure the runtime of filers for a specific scenario
     Be aware that this gives no feedback upon how much multithreading is used!
 
@@ -118,7 +118,7 @@ def residual_power_ratio(target:Iterable[float],
                          prediction:Iterable[float],
                          start:int|None=None,
                          stop:int|None=None,
-                         remove_dc:bool=True):
+                         remove_dc:bool=True) -> float:
     """Calculate the ratio between residual power of the residual and the target signal
 
     :param target: target signal array
@@ -139,7 +139,7 @@ def residual_power_ratio(target:Iterable[float],
 
     return float(total_power(residual) / total_power(target))
 
-def residual_amplitude_ratio(*args, **kwargs):
+def residual_amplitude_ratio(*args, **kwargs) -> float:
     """Calculate the ratio between residual amplitude of the residual and the target signal
 
     :param target: target signal array
