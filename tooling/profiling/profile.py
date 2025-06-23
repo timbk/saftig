@@ -5,7 +5,7 @@ import saftig as sg
 import numpy as np
 from icecream import ic
 
-DEBUG = True
+DEBUG = False
 IGNORE_FILTER_OPTIONS = {'coefficient_clipping', 'step_scale'}
 
 # filter, additional_filter_config, skip_conditioning
@@ -96,7 +96,6 @@ def run_and_save_scan(target, values, default_values, filter_config, **file_addi
              **file_additions)
 
 def main():
-
     print('n_filter')
     default_values = {'n_samples':int(1e4), 'n_channel': 1, 'n_filter': 128, 'idx_target': 0}
     n_filter_values = [10, 30, 100, 300, 1000]
