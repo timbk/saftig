@@ -1,5 +1,9 @@
-from setuptools import setup
+from setuptools import setup, Extension
 import setuptools
+
+c_modules = [
+    Extension('saftig._lms_c', sources=['saftig/_lms_c.c'])
+]
 
 setup(
         name="SAFTIG",
@@ -14,5 +18,6 @@ setup(
                           "scipy",
                           "icecream",
                           ],
-        packages=setuptools.find_packages(),
+        ext_modules = c_modules,
+        packages=['saftig'],
 )

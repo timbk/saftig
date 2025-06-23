@@ -1,6 +1,8 @@
 SHELL := /bin/bash
 
-all: doc test linter
+all: build doc test linter
+build:
+	pip install -e .
 
 test:
 	coverage run -m unittest discover .
@@ -21,4 +23,12 @@ doc: doc/source/* doc/*
 view: doc
 	open doc/build/html/index.html
 
-.PHONY: all, doc, view, test, linter, coverage, cweb, linter_testing, lt
+clean:
+	-rm -r build/
+	-rm -r saftig/__pycache__/
+	-rm *.so
+	-rm -r SAFTIG.egg-info/
+	-rm -r htmlcov
+
+
+.PHONY: all, doc, view, test, linter, coverage, cweb, linter_testing, lt, build, clean
