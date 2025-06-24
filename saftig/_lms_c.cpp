@@ -61,8 +61,20 @@ static PyObject *
 LMS_C_step(LMS_C_OBJECT *self, PyObject *args)
 {
     PyArrayObject* array;
+    NpyIter *iter;
+    NpyIter_IterNextFunc *iternext;
+    NpyIter_GetMultiIndexFunc *get_multi_index;
+    npy_intp multi_index[2];
+    double** dataptr;
 
+    // get parameter
     if (!PyArg_ParseTuple(args, "O!", &PyArray_Type, &array)) {
+        return NULL;
+    }
+
+    // check dtype
+    if(PyArray_TYPE(array) != NPY_FLOAT64) {
+        PyErr_SetString(PyExc_ValueError, "np.float64 is the only supported dtype");
         return NULL;
     }
 
@@ -73,7 +85,7 @@ LMS_C_step(LMS_C_OBJECT *self, PyObject *args)
         return NULL;
     }
 
-    // Get dimensions
+    // check that dimensions match
     npy_intp* dims = PyArray_DIMS(array);
     int channels = dims[0], n_filter = dims[1];
 
@@ -86,13 +98,38 @@ LMS_C_step(LMS_C_OBJECT *self, PyObject *args)
         return NULL;
     }
 
-    // check all other flags
-    if(PyArray_TYPE(array) != NPY_FLOAT64) {
-        PyErr_SetString(PyExc_ValueError, "np.float64 is the only supported dtype");
+    // get iterator
+    iter = NpyIter_New( array,
+            NPY_ITER_READONLY | NPY_ITER_MULTI_INDEX | NPY_ITER_REFS_OK,
+            NPY_KEEPORDER,
+            NPY_NO_CASTING,
+            NULL);
+    if (iter == NULL) {
         return NULL;
     }
 
-    // use an iterator?
+    // loop
+    if (NpyIter_GetIterSize(iter) != 0) {
+        iternext = NpyIter_GetIterNext(iter, NULL);
+        dataptr = (double**)NpyIter_GetDataPtrArray(iter);
+        NpyIter_GetMultiIndexFunc *get_multi_index = NpyIter_GetGetMultiIndex(iter, NULL);
+
+        if ((iternext == NULL) || (dataptr == NULL) || (get_multi_index == NULL)) {
+            NpyIter_Deallocate(iter);
+            return NULL;
+        }
+
+        do {
+            get_multi_index(iter, multi_index);
+            printf("multi_index is [%" NPY_INTP_FMT ", %" NPY_INTP_FMT "], %lf\n",
+                   multi_index[0], multi_index[1], **dataptr);
+        } while (iternext(iter));
+    }
+
+    // dealloc the iter instance
+    if (!NpyIter_Deallocate(iter)) {
+        return NULL;
+    }
 
     return PyFloat_FromDouble(self->filter->step());
 }
