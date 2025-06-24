@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools",
+    "wheel",
+    "numpy",
+    "scipy",
+    "matplotlib",
+    "icecream",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "saftig"
+version = "0.1"
+description = "Implementations of different static and adaptive filtering techniques for the prediction of a correlated signal component from witness signals."
+readme = "README.md"
+license = "GPL-3.0-only"
+keywords = ["prediction", "filtering", "Wiener filter", "LeastMeanSquares", "noise cancellation"]
+
+[project.urls]
+Repository = "https://github.com/timbk/saftig"
