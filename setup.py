@@ -7,12 +7,6 @@ c_modules = [
 ]
 
 setup(
-        install_requires=[
-                          "numpy",
-                          "matplotlib",
-                          "scipy",
-                          "icecream",
-                          ],
         packages=['saftig'],
 
         ext_modules = c_modules,
