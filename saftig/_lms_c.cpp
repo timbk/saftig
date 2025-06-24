@@ -139,14 +139,14 @@ LMS_C_dealloc(LMS_C_OBJECT *self)
 static PyTypeObject LMS_C_TYPE = {
     .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "LMS_C.LMS_C",
-    .tp_doc = PyDoc_STR("LMS Filter implemented in C"),
     .tp_basicsize = sizeof(LMS_C_OBJECT),
     .tp_itemsize = 0,
+    .tp_dealloc = (destructor) LMS_C_dealloc,
     .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_new = PyType_GenericNew,
+    .tp_doc = PyDoc_STR("LMS Filter implemented in C"),
     .tp_methods = LMS_C_methods,
     .tp_init = (initproc) LMS_C_init,
-    .tp_dealloc = (destructor) LMS_C_dealloc,
+    .tp_new = PyType_GenericNew,
 };
 
 static int
