@@ -1,7 +1,6 @@
 # saftig – Static & Adaptive Filtering Techniques In Gravitation-wave-research
-Static &amp; Adaptive Filtering Techniques
 
-Implementations of different filtering techniques for the prediction of a correlated signal component from witness signals.
+Python implementations of different static and adaptive filtering techniques for the prediction of a correlated signal component from witness signals.
 The main goal is to provide a unified interface for the different filtering techniques.
 
 ## Terminology

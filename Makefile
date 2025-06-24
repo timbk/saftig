@@ -27,6 +27,7 @@ clean:
 	-rm -r build/
 	-rm -r saftig/__pycache__/
 	-rm *.so
+	-rm saftig/*.so
 	-rm -r SAFTIG.egg-info/
 	-rm -r htmlcov
 
