@@ -7,6 +7,7 @@ module_list = [
     sg.wf,
     sg.uwf,
     sg.lms,
+    sg.lms_c,
     sg.polylms,
 ]
 
