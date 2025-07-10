@@ -1,6 +1,5 @@
 // Relevant documentation: https://docs.python.org/3/extending/newtypes_tutorial.html
 
-
 #define PY_SSIZE_T_CLEAN
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include <Python.h>
@@ -8,6 +7,7 @@
 
 #include <vector>
 #include <iostream>
+#include <cmath>
 
 // /// LeastMeanSquares implementation
 // class LMSFilter{
@@ -15,7 +15,7 @@
 //     uint32_t n_filter, idx_target, n_channel;
 //     float step_scale;
 //     bool normalized;
-// 
+//
 //     std::vector<std::vector<double>> filter_coefficients;
 // public:
 //     LMSFilter(uint32_t n_filter,
@@ -104,9 +104,10 @@ LMS_C_step(LMS_C_OBJECT *self, PyObject *args)
     NpyIter_GetMultiIndexFunc *get_multi_index;
     npy_intp multi_index[2];
     double** dataptr;
+    double target;
 
     // get parameter
-    if (!PyArg_ParseTuple(args, "O!", &PyArray_Type, &array)) {
+    if (!PyArg_ParseTuple(args, "O!d", &PyArray_Type, &array, &target)) {
         return NULL;
     }
 
@@ -139,22 +140,44 @@ LMS_C_step(LMS_C_OBJECT *self, PyObject *args)
     }
 
     // calculate prediction
-    do {
-        get_multi_index(iter, multi_index);
-        printf("multi_index is [%" NPY_INTP_FMT ", %" NPY_INTP_FMT "], %lf\n",
-               multi_index[0], multi_index[1], **dataptr);
-    } while (iternext(iter));
+    double prediction = 0, normalization = 0;
+    if(self->normalized) {
+        do {
+            get_multi_index(iter, multi_index);
 
-    // update filter
+            //printf("multi_index is [%" NPY_INTP_FMT ", %" NPY_INTP_FMT "], %lf, %lf\n",
+            //       multi_index[0], multi_index[1], **dataptr, self->filter_coefficients[multi_index[0]][multi_index[1]]);
+
+            // the following uses the fma() instruction that can be faster on some computers
+            // prediction += (**dataptr) * self->filter_coefficients[multi_index[0]][multi_index[1]];
+            prediction = fma((**dataptr), self->filter_coefficients[multi_index[0]][multi_index[1]], prediction);
+            // normalization += (**dataptr) * (**dataptr);
+            normalization = fma(**dataptr, **dataptr, normalization);
+        } while (iternext(iter));
+    } else {
+        do {
+            get_multi_index(iter, multi_index);
+            prediction += (**dataptr) * self->filter_coefficients[multi_index[0]][multi_index[1]];
+        } while (iternext(iter));
+        normalization = 1;
+    }
+
+    // calculate instantaneous prediction error
+    double error = target - prediction;
+
+    // reset iterator to the start of the numpy array
     char *reset_fail_msg = "Iterator reset failed";
     if(NpyIter_Reset(iter, &reset_fail_msg) != NPY_SUCCEED) {
         return NULL;
     }
-    puts("");
+
+    // update filter
     do {
         get_multi_index(iter, multi_index);
-        printf("multi_index is [%" NPY_INTP_FMT ", %" NPY_INTP_FMT "], %lf\n",
-               multi_index[0], multi_index[1], **dataptr);
+
+        self->filter_coefficients[multi_index[0]][multi_index[1]] += 2 * self->step_scale * error * (**dataptr) / normalization;
+
+        // TODO: clipping
     } while (iternext(iter));
 
     // dealloc the iter instance
@@ -162,7 +185,7 @@ LMS_C_step(LMS_C_OBJECT *self, PyObject *args)
         return NULL;
     }
 
-    return PyFloat_FromDouble(0.);
+    return PyFloat_FromDouble(prediction);
 }
 
 static PyMethodDef LMS_C_methods[] = {
@@ -176,7 +199,7 @@ static PyMethodDef LMS_C_methods[] = {
 static int
 LMS_C_init(LMS_C_OBJECT *self, PyObject *args, PyObject *kwds)
 {
-    static char * kwlist[] = {"n_filter", "idx_target", "n_channel", "step_scale", "normalized"};
+    static char * kwlist[] = {"n_filter", "idx_target", "n_channel", "step_scale", "normalized", NULL}; // must be terminated with a NULL
     unsigned int n_filter, idx_target, n_channel;
     float step_scale;
     bool normalized = true;
@@ -196,6 +219,7 @@ LMS_C_init(LMS_C_OBJECT *self, PyObject *args, PyObject *kwds)
     self->step_scale = step_scale;
     self->normalized = normalized;
 
+    // set the filter size and reset all coefficients to zero
     self->filter_coefficients.insert(self->filter_coefficients.begin(),
             n_channel,
             std::vector<double>(n_filter, 0));
