@@ -23,7 +23,7 @@ class TestTestDataGenerator(unittest.TestCase): # yup, this is what my naming sc
 
         tdg = sg.TestDataGenerator(witness_noise_level=w_noise_levels,
                                    sample_rate=sample_rate)
-        witness, target = tdg.generate(int(1e5))
+        witness, target = tdg.generate(int(5e5))
 
         # test the amplitudes
         ASD_target = calc_mean_asd(target, sample_rate)
