@@ -1,4 +1,4 @@
-# saftig – Static & Adaptive Filtering Techniques In Gravitation-wave-research
+# saftig – Static & Adaptive Filtering Techniques In Gravitational-wave-research
 
 Python implementations of different static and adaptive filtering techniques for the prediction of a correlated signal component from witness signals.
 The main goal is to provide a unified interface for the different filtering techniques.
@@ -13,7 +13,7 @@ Adaptive
 * Least-Mean-Squares Filter (LMS)
 
 Non-Linear:
-* Experimentel non-linear LMS Filter variant (PolynomialLMS)
+* Experimental non-linear LMS Filter variant (PolynomialLMS)
 
 ## Minimal example
 
