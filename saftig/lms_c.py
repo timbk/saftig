@@ -29,12 +29,8 @@ class LMSFilterC(FilterBase):
     filter_name = "LMS_C"
 
     def __init__(self, n_filter, idx_target, n_channel, step_scale=0.1, normalized=True, clipping=np.nan):
+        super().__init__(n_filter, idx_target, n_channel)
         self.filter = LMS_C(n_filter, idx_target, n_channel, step_scale, normalized) # TODO: implement clipping
-
-        # this allows using the existing python tooling to check array dimensions
-        self.n_filter = n_filter
-        self.n_channel = n_channel
-        self.idx_target = idx_target
 
     def reset(self) -> None:
         """ reset the filter coefficients to zero """
