@@ -9,52 +9,10 @@
 #include <iostream>
 #include <cmath>
 
-// /// LeastMeanSquares implementation
-// class LMSFilter{
-// private:
-//     uint32_t n_filter, idx_target, n_channel;
-//     float step_scale;
-//     bool normalized;
-//
-//     std::vector<std::vector<double>> filter_coefficients;
-// public:
-//     LMSFilter(uint32_t n_filter,
-//             uint32_t idx_target,
-//             uint32_t n_channel,
-//             float step_scale,
-//             bool normalized=true)
-//         : n_filter(n_filter),
-//           idx_target(idx_target),
-//           n_channel(n_channel),
-//           step_scale(step_scale),
-//           normalized(normalized),
-//           filter_coefficients(n_channel, std::vector<double>(n_filter, 0)) {
-//     }
-// 
-//     /**
-//      * @brief reset filter parameters
-//      */
-//     void reset() {
-//         for(auto channel: filter_coefficients) {
-//             std::fill(channel.begin(), channel.end(), 0.);
-//         }
-//     }
-// 
-//     uint32_t get_n_filter() {return n_filter;}
-//     uint32_t get_idx_target() {return idx_target;}
-//     uint32_t get_n_channel() {return n_channel;}
-// 
-//     double step() {
-//         return 0.;
-//     }
-// };
-
-
-
 typedef struct {
     PyObject_HEAD;
-    int n_filter, idx_target, n_channel;
-    float step_scale;
+    unsigned int n_filter, idx_target, n_channel;
+    double step_scale, clip_coefficients;
     bool normalized;
 
     std::vector<std::vector<double>> filter_coefficients;
@@ -145,9 +103,6 @@ LMS_C_step(LMS_C_OBJECT *self, PyObject *args)
         do {
             get_multi_index(iter, multi_index);
 
-            //printf("multi_index is [%" NPY_INTP_FMT ", %" NPY_INTP_FMT "], %lf, %lf\n",
-            //       multi_index[0], multi_index[1], **dataptr, self->filter_coefficients[multi_index[0]][multi_index[1]]);
-
             // the following uses the fma() instruction that can be faster on some computers
             // prediction += (**dataptr) * self->filter_coefficients[multi_index[0]][multi_index[1]];
             prediction = fma((**dataptr), self->filter_coefficients[multi_index[0]][multi_index[1]], prediction);
@@ -166,8 +121,8 @@ LMS_C_step(LMS_C_OBJECT *self, PyObject *args)
     double error = target - prediction;
 
     // reset iterator to the start of the numpy array
-    char *reset_fail_msg = "Iterator reset failed";
-    if(NpyIter_Reset(iter, &reset_fail_msg) != NPY_SUCCEED) {
+    char reset_fail_msg[] = "Iterator reset failed";
+    if(NpyIter_Reset(iter, (char**)&reset_fail_msg) != NPY_SUCCEED) {
         return NULL;
     }
 
@@ -177,7 +132,14 @@ LMS_C_step(LMS_C_OBJECT *self, PyObject *args)
 
         self->filter_coefficients[multi_index[0]][multi_index[1]] += 2 * self->step_scale * error * (**dataptr) / normalization;
 
-        // TODO: clipping
+        // clip the filter coefficients to self->clip_coefficients if the value is not NaN
+        if(!std::isnan(self->clip_coefficients)) {
+            if(self->filter_coefficients[multi_index[0]][multi_index[1]] > self->clip_coefficients) {
+                self->filter_coefficients[multi_index[0]][multi_index[1]] = self->clip_coefficients;
+            } else if(self->filter_coefficients[multi_index[0]][multi_index[1]] < -self->clip_coefficients) {
+                self->filter_coefficients[multi_index[0]][multi_index[1]] = -self->clip_coefficients;
+            }
+        }
     } while (iternext(iter));
 
     // dealloc the iter instance
@@ -199,30 +161,25 @@ static PyMethodDef LMS_C_methods[] = {
 static int
 LMS_C_init(LMS_C_OBJECT *self, PyObject *args, PyObject *kwds)
 {
-    static char * kwlist[] = {"n_filter", "idx_target", "n_channel", "step_scale", "normalized", NULL}; // must be terminated with a NULL
-    unsigned int n_filter, idx_target, n_channel;
-    float step_scale;
-    bool normalized = true;
+    static char * kwlist[] = {"n_filter", "idx_target", "n_channel", "step_scale", "normalized", "coefficient_clipping", NULL}; // must be terminated with a NULL
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "IIIf|p", kwlist,
-                                     &n_filter,
-                                     &idx_target,
-                                     &n_channel,
-                                     &step_scale,
-                                     &normalized)) {
+    self->normalized = true;
+    self->clip_coefficients = std::nan("");
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "IIId|pd", kwlist,
+                                     &self->n_filter,
+                                     &self->idx_target,
+                                     &self->n_channel,
+                                     &self->step_scale,
+                                     &self->normalized,
+                                     &self->clip_coefficients)) {
         return -1;
     }
 
-    self->n_filter = n_filter;
-    self->idx_target = idx_target;
-    self->n_channel = n_channel;
-    self->step_scale = step_scale;
-    self->normalized = normalized;
-
     // set the filter size and reset all coefficients to zero
     self->filter_coefficients.insert(self->filter_coefficients.begin(),
-            n_channel,
-            std::vector<double>(n_filter, 0));
+            self->n_channel,
+            std::vector<double>(self->n_filter, 0));
 
     return 0;
 }

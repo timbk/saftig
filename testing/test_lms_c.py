@@ -1,4 +1,5 @@
 import unittest
+import numpy as np
 
 import saftig as sg
 
@@ -11,6 +12,7 @@ class TestLMSFilterC(unittest.TestCase, TestFilter):
 
         test_configurations = [
             {'normalized': True},
+            {'normalized': True, 'coefficient_clipping': 2, 'step_scale': 0.5},
             {'normalized': False, 'step_scale': 0.001},
         ]
         self.set_target(sg.LMSFilterC, test_configurations)

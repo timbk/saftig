@@ -28,9 +28,20 @@ class LMSFilterC(FilterBase):
     """
     filter_name = "LMS_C"
 
-    def __init__(self, n_filter, idx_target, n_channel, step_scale=0.1, normalized=True, clipping=np.nan):
+    def __init__(self,
+                 n_filter:int,
+                 idx_target:int,
+                 n_channel:int,
+                 step_scale:float=0.1,
+                 normalized:bool=True,
+                 coefficient_clipping:float|None=None):
         super().__init__(n_filter, idx_target, n_channel)
-        self.filter = LMS_C(n_filter, idx_target, n_channel, step_scale, normalized) # TODO: implement clipping
+        self.filter = LMS_C(n_filter,
+                            idx_target,
+                            n_channel,
+                            step_scale,
+                            normalized,
+                            np.nan if coefficient_clipping is None else coefficient_clipping)
 
     def reset(self) -> None:
         """ reset the filter coefficients to zero """
