@@ -26,6 +26,7 @@ class LMSFilterC(FilterBase):
     True
 
     """
+    filter_name = "LMS_C"
 
     def __init__(self, n_filter, idx_target, n_channel, step_scale=0.1, normalized=True, clipping=np.nan):
         self.filter = LMS_C(n_filter, idx_target, n_channel, step_scale, normalized) # TODO: implement clipping

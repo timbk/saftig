@@ -108,4 +108,7 @@ cython_debug/
 .*.swp
 .sw*
 
+# mac
+.DS_Store
+
 TODO
