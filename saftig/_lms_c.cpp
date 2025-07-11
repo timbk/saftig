@@ -1,6 +1,5 @@
 // Relevant documentation: https://docs.python.org/3/extending/newtypes_tutorial.html
 
-
 #define PY_SSIZE_T_CLEAN
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include <Python.h>
@@ -8,93 +7,147 @@
 
 #include <vector>
 #include <iostream>
-
-/// LeastMeanSquares implementation
-class LMSFilter{
-private:
-    uint32_t n_filter, idx_target, n_channel;
-    float step_scale;
-    bool normalized;
-
-    std::vector<std::vector<double>> filter_coefficients;
-public:
-    LMSFilter(uint32_t n_filter,
-            uint32_t idx_target,
-            uint32_t n_channel,
-            float step_scale,
-            bool normalized=true)
-        : n_filter(n_filter),
-          idx_target(idx_target),
-          n_channel(n_channel),
-          step_scale(step_scale),
-          normalized(normalized),
-          filter_coefficients(n_channel, std::vector<double>(n_filter, 0)) {
-    }
-
-    /**
-     * @brief reset filter parameters
-     */
-    void reset() {
-        for(auto channel: filter_coefficients) {
-            std::fill(channel.begin(), channel.end(), 0.);
-        }
-    }
-
-    uint32_t get_n_filter() {return n_filter;}
-    uint32_t get_idx_target() {return idx_target;}
-    uint32_t get_n_channel() {return n_channel;}
-
-    double step() {
-        return 0.;
-    }
-};
-
-
+#include <cmath>
 
 typedef struct {
     PyObject_HEAD;
-    LMSFilter *filter;
+    unsigned int n_filter, idx_target, n_channel;
+    double step_scale, clip_coefficients;
+    bool normalized;
+
+    std::vector<std::vector<double>> filter_coefficients;
     /* Type-specific fields go here. */
 } LMS_C_OBJECT;
 
-static PyObject *
-LMS_C_step(LMS_C_OBJECT *self, PyObject *args)
-{
-    PyArrayObject* array;
-
-    if (!PyArg_ParseTuple(args, "O!", &PyArray_Type, &array)) {
-        return NULL;
+/**
+ * check that the array is 2D with the given shape and dtype double
+ * raise an exception if not
+ * returns false if an exception was raised
+ */
+bool check_array_properties(PyArrayObject *array, int shape0, int shape1) {
+    // check dtype
+    if(PyArray_TYPE(array) != NPY_FLOAT64) {
+        PyErr_SetString(PyExc_ValueError, "np.float64 is the only supported dtype");
+        return false;
     }
 
     // Check that it's a 2D array
     if (PyArray_NDIM(array) != 2) {
         std::cout << "2+" << std::endl;
         PyErr_SetString(PyExc_ValueError, "Input must be a 2D array.");
-        return NULL;
+        return false;
     }
 
-    // Get dimensions
+    // check that dimensions match
     npy_intp* dims = PyArray_DIMS(array);
     int channels = dims[0], n_filter = dims[1];
 
-    if(channels != self->filter->get_n_channel()) {
+    if(channels != shape0) {
         PyErr_SetString(PyExc_ValueError, "Input channel count missmatch");
-        return NULL;
+        return false;
     }
-    if(n_filter != self->filter->get_n_filter()) {
+    if(n_filter != shape1) {
         PyErr_SetString(PyExc_ValueError, "Input sample count missmatch");
+        return false;
+    }
+    return true;
+}
+
+static PyObject *
+LMS_C_step(LMS_C_OBJECT *self, PyObject *args)
+{
+    PyArrayObject* array;
+    NpyIter *iter;
+    NpyIter_IterNextFunc *iternext;
+    NpyIter_GetMultiIndexFunc *get_multi_index;
+    npy_intp multi_index[2];
+    double** dataptr;
+    double target;
+
+    // get parameter
+    if (!PyArg_ParseTuple(args, "O!d", &PyArray_Type, &array, &target)) {
         return NULL;
     }
 
-    // check all other flags
-    if(PyArray_TYPE(array) != NPY_FLOAT64) {
-        PyErr_SetString(PyExc_ValueError, "np.float64 is the only supported dtype");
+    if(not check_array_properties(array, self->n_channel, self->n_filter)) {
         return NULL;
     }
 
-    // use an iterator?
+    // get iterator
+    iter = NpyIter_New( array,
+            NPY_ITER_READONLY | NPY_ITER_MULTI_INDEX | NPY_ITER_REFS_OK,
+            NPY_KEEPORDER,
+            NPY_NO_CASTING,
+            NULL);
+    if (iter == NULL) {
+        return NULL;
+    }
 
-    return PyFloat_FromDouble(self->filter->step());
+    if (NpyIter_GetIterSize(iter) == 0) {
+        NpyIter_Deallocate(iter);
+        return NULL;
+    }
+
+    iternext = NpyIter_GetIterNext(iter, NULL);
+    dataptr = (double**)NpyIter_GetDataPtrArray(iter);
+    get_multi_index = NpyIter_GetGetMultiIndex(iter, NULL);
+
+    if ((iternext == NULL) || (dataptr == NULL) || (get_multi_index == NULL)) {
+        NpyIter_Deallocate(iter);
+        return NULL;
+    }
+
+    // calculate prediction
+    double prediction = 0, normalization = 0;
+    if(self->normalized) {
+        do {
+            get_multi_index(iter, multi_index);
+
+            // the following uses the fma() instruction that can be faster on some computers
+            // prediction += (**dataptr) * self->filter_coefficients[multi_index[0]][multi_index[1]];
+            prediction = fma((**dataptr), self->filter_coefficients[multi_index[0]][multi_index[1]], prediction);
+            // normalization += (**dataptr) * (**dataptr);
+            normalization = fma(**dataptr, **dataptr, normalization);
+        } while (iternext(iter));
+    } else {
+        do {
+            get_multi_index(iter, multi_index);
+            prediction += (**dataptr) * self->filter_coefficients[multi_index[0]][multi_index[1]];
+        } while (iternext(iter));
+        normalization = 1;
+    }
+
+    // calculate instantaneous prediction error
+    double error = target - prediction;
+
+    // reset iterator to the start of the numpy array
+    char reset_fail_msg[] = "Iterator reset failed";
+    if(NpyIter_Reset(iter, (char**)&reset_fail_msg) != NPY_SUCCEED) {
+        return NULL;
+    }
+
+    // update filter
+    do {
+        get_multi_index(iter, multi_index);
+
+        self->filter_coefficients[multi_index[0]][multi_index[1]] += 2 * self->step_scale * error * (**dataptr) / normalization;
+
+        // clip the filter coefficients to self->clip_coefficients if the value is not NaN
+        if(!std::isnan(self->clip_coefficients)) {
+            if(self->filter_coefficients[multi_index[0]][multi_index[1]] > self->clip_coefficients) {
+                self->filter_coefficients[multi_index[0]][multi_index[1]] = self->clip_coefficients;
+            } else if(self->filter_coefficients[multi_index[0]][multi_index[1]] < -self->clip_coefficients) {
+                self->filter_coefficients[multi_index[0]][multi_index[1]] = -self->clip_coefficients;
+            }
+        }
+    } while (iternext(iter));
+
+    // dealloc the iter instance
+    if (!NpyIter_Deallocate(iter)) {
+        return NULL;
+    }
+
+    return PyFloat_FromDouble(prediction);
 }
 
 static PyMethodDef LMS_C_methods[] = {
@@ -108,21 +161,25 @@ static PyMethodDef LMS_C_methods[] = {
 static int
 LMS_C_init(LMS_C_OBJECT *self, PyObject *args, PyObject *kwds)
 {
-    static char * kwlist[] = {"n_filter", "idx_target", "n_channel", "step_scale", "normalized"};
-    unsigned int n_filter, idx_target, n_channel;
-    float step_scale;
-    bool normalized = true;
+    static char * kwlist[] = {"n_filter", "idx_target", "n_channel", "step_scale", "normalized", "coefficient_clipping", NULL}; // must be terminated with a NULL
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "IIIf|p", kwlist,
-                                     &n_filter,
-                                     &idx_target,
-                                     &n_channel,
-                                     &step_scale,
-                                     &normalized)) {
+    self->normalized = true;
+    self->clip_coefficients = std::nan("");
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "IIId|pd", kwlist,
+                                     &self->n_filter,
+                                     &self->idx_target,
+                                     &self->n_channel,
+                                     &self->step_scale,
+                                     &self->normalized,
+                                     &self->clip_coefficients)) {
         return -1;
     }
 
-    self->filter = new LMSFilter(n_filter, idx_target, n_channel, step_scale, normalized);
+    // set the filter size and reset all coefficients to zero
+    self->filter_coefficients.insert(self->filter_coefficients.begin(),
+            self->n_channel,
+            std::vector<double>(self->n_filter, 0));
 
     return 0;
 }
@@ -130,7 +187,6 @@ LMS_C_init(LMS_C_OBJECT *self, PyObject *args, PyObject *kwds)
 static void
 LMS_C_dealloc(LMS_C_OBJECT *self)
 {
-    delete self->filter;
     // this must call Py_XDECREF(object) for all held python objects
     Py_TYPE(self)->tp_free((PyObject *) self);
 }

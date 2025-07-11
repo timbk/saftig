@@ -15,6 +15,8 @@ FILTER_CONFIGURATIONS = [
     (sg.UpdatingWienerFilter, {'context_pre': 300}, True),
     (sg.LMSFilter, {'normalized': True, 'coefficient_clipping': 10}, False),
     (sg.LMSFilter, {'normalized': False, 'coefficient_clipping': 10, 'step_scale': 0.001}, False),
+    (sg.LMSFilterC, {'normalized': True}, False),
+    (sg.LMSFilterC, {'normalized': False}, False),
     (sg.PolynomialLMSFilter, {'order': 1, 'coefficient_clipping': 10}, False),
     (sg.PolynomialLMSFilter, {'order': 2, 'coefficient_clipping': 10}, False),
     (sg.PolynomialLMSFilter, {'order': 3, 'coefficient_clipping': 10}, False),
@@ -85,6 +87,7 @@ def profiling_scan(target:str,
             'target_values': target_values,
             'results': np.array(results),
             'filter_configs': filter_configs_to_str(filter_configs),
+            'filter_names': [i[0].filter_name for i in filter_configs],
             'other_values': other_values,
             }
 

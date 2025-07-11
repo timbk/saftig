@@ -1,8 +1,8 @@
 import os
 os.environ["OMP_NUM_THREADS"] = "1" # limit numy to a single thread
-MULTITHREAD = False
 
-from profile import *
+import profile
 
 if __name__ == "__main__":
-    main()
+    profile.MULTITHREAD = False
+    profile.main()
