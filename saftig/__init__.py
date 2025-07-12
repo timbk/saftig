@@ -14,7 +14,7 @@ from .uwf import UpdatingWienerFilter
 from .lms import LMSFilter
 from .polylms import PolynomialLMSFilter
 
-from .lms_c import LMSFilterC, LMS_C
+from .lms_c import LMSFilterC
 
 #: A list of all filters for automated testing and comparisons
 all_filters = [

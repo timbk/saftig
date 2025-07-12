@@ -161,7 +161,13 @@ static PyMethodDef LMS_C_methods[] = {
 static int
 LMS_C_init(LMS_C_OBJECT *self, PyObject *args, PyObject *kwds)
 {
-    static char * kwlist[] = {"n_filter", "idx_target", "n_channel", "step_scale", "normalized", "coefficient_clipping", NULL}; // must be terminated with a NULL
+    static char * kwlist[] = { (char *) "n_filter",
+                               (char *) "idx_target",
+                               (char *) "n_channel",
+                               (char *) "step_scale",
+                               (char *) "normalized",
+                               (char *) "coefficient_clipping",
+                               (char *) NULL}; // must be terminated with a NULL
 
     self->normalized = true;
     self->clip_coefficients = std::nan("");
