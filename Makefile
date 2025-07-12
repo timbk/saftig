@@ -24,7 +24,7 @@ view: doc
 	open doc/build/html/index.html
 
 clean:
-	-rm -r build/
+	-rm -r build/ dist/
 	-rm -r saftig/__pycache__/
 	-rm *.so
 	-rm saftig/*.so
@@ -32,7 +32,7 @@ clean:
 	-rm -r htmlcov
 
 testpublish:
-	python -m build
+	python -m build -s
 	twine upload --repository testpypi dist/*
 
 .PHONY: all, doc, view, test, linter, coverage, cweb, linter_testing, lt, build, clean
