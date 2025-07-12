@@ -1,5 +1,8 @@
 # saftig – Static & Adaptive Filtering Techniques In Gravitational-wave-research
 
+![Test status](https://github.com/timbk/saftig/actions/workflows/testing.yml/badge.svg)
+![Linting status](https://github.com/timbk/saftig/actions/workflows/pylint.yml/badge.svg)
+
 Python implementations of different static and adaptive filtering techniques for the prediction of a correlated signal component from witness signals.
 The main goal is to provide a unified interface for the different filtering techniques.
 
