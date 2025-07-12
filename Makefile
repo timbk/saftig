@@ -31,5 +31,8 @@ clean:
 	-rm -r SAFTIG.egg-info/
 	-rm -r htmlcov
 
+testpublish:
+	python -m build
+	twine upload --repository testpypi dist/*
 
 .PHONY: all, doc, view, test, linter, coverage, cweb, linter_testing, lt, build, clean
