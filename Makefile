@@ -1,8 +1,8 @@
 SHELL := /bin/bash
 
 all: build doc test linter
-build:
-	pip install -e .
+ie:
+	pip install --no-build-isolation -e .
 
 test:
 	coverage run -m unittest discover .
@@ -25,6 +25,7 @@ view: doc
 
 clean:
 	-rm -r build/
+	-rm -r dist/
 	-rm -r saftig/__pycache__/
 	-rm *.so
 	-rm saftig/*.so
@@ -32,7 +33,7 @@ clean:
 	-rm -r htmlcov
 
 testpublish:
-	python -m build
+	python -m build -s
 	twine upload --repository testpypi dist/*
 
-.PHONY: all, doc, view, test, linter, coverage, cweb, linter_testing, lt, build, clean
+.PHONY: all, doc, view, test, linter, coverage, cweb, linter_testing, lt, build, clean, testpublish, ie
