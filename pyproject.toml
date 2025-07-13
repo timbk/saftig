@@ -1,12 +1,13 @@
 [build-system]
-requires = ["setuptools",
-    "wheel",
+build-backend = "mesonpy"
+requires = [
+    "meson-python",
+    "ninja",
     "numpy",
     "scipy",
     "matplotlib",
     "icecream",
 ]
-build-backend = "setuptools.build_meta"
 
 [project]
 name = "saftig"
