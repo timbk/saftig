@@ -76,17 +76,21 @@ class TestFilter:
 
     def test_performance(self):
         """ check that the filter reaches a WF-Like performance on a simple static test case """
-        n_filter = 128
-        witness, target = sg.TestDataGenerator([0.1]*2).generate(int(1e4))
+        noise_levels = [0, 0.1]
+        maximum_acceptable_residual = [(0, 0.05), (0.05, 0.15)]
 
-        for idx_target in [0, int(n_filter/2), n_filter-1]:
-            for filt in self.instantiate_filters(n_filter, n_channel=2, idx_target=idx_target):
-                with warnings.catch_warnings(): # warnings are expected here
-                    warnings.simplefilter("ignore")
-                    filt.condition(witness, target)
+        for noise_level, acceptable_residual in zip(noise_levels, maximum_acceptable_residual):
+            n_filter = 32
+            witness, target = sg.TestDataGenerator([noise_level]*2).generate(int(2e4))
 
-                prediction = filt.apply(witness, target)
-                residual = sg.RMS((target - prediction)[3000:])
+            for idx_target in [0, int(n_filter/2), n_filter-1]:
+                for filt in self.instantiate_filters(n_filter, n_channel=2, idx_target=idx_target):
+                    with warnings.catch_warnings(): # warnings are expected here
+                        warnings.simplefilter("ignore")
+                        filt.condition(witness, target)
+                        prediction = filt.apply(witness, target)
 
-                self.assertGreater(residual, 0.05)
-                self.assertLess(residual, 0.15)
+                    residual = sg.RMS((target - prediction)[4000:])
+
+                    self.assertGreater(residual, acceptable_residual[0])
+                    self.assertLess(residual, acceptable_residual[1])

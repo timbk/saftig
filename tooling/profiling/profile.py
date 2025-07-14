@@ -12,7 +12,7 @@ IGNORE_FILTER_OPTIONS = {'coefficient_clipping', 'step_scale'}
 FILTER_CONFIGURATIONS = [
     (sg.WienerFilter, {}, False),
     (sg.UpdatingWienerFilter, {'context_pre': 300}, True),
-    (sg.UpdatingWienerFilter, {'context_pre': 300}, True),
+    (sg.UpdatingWienerFilter, {'context_pre': 3000}, True),
     (sg.LMSFilter, {'normalized': True, 'coefficient_clipping': 10}, False),
     (sg.LMSFilter, {'normalized': False, 'coefficient_clipping': 10, 'step_scale': 0.001}, False),
     (sg.LMSFilterC, {'normalized': True}, False),
@@ -99,6 +99,13 @@ def run_and_save_scan(target, values, default_values, filter_config, **file_addi
              **file_additions)
 
 def main():
+    # run all filters once
+    # this triggers e.g. numba compiles that would otherwise slow down the first exection
+    print('prime filters')
+    default_values = {'n_samples':int(1e4), 'n_channel': 1, 'n_filter': 128, 'idx_target': 0}
+    n_filter_values = [10]
+    profiling_scan('n_filter', n_filter_values, default_values, FILTER_CONFIGURATIONS)
+
     print('n_filter')
     default_values = {'n_samples':int(1e4), 'n_channel': 1, 'n_filter': 128, 'idx_target': 0}
     n_filter_values = [10, 30, 100, 300, 1000]
