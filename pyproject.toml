@@ -19,6 +19,7 @@ dependencies = [
     "scipy",
     "matplotlib",
     "icecream",
+    "numba",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",

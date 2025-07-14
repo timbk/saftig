@@ -1,8 +1,45 @@
 """Least Mean Squares filter"""
 from typing import Iterable
 import numpy as np
+import numba
 
 from .common import FilterBase
+
+@numba.njit
+def _lms_loop(
+             witness: Iterable[Iterable[float]],
+             target: Iterable[float],
+             n_filter: int,
+             idx_target: int,
+             filter_state: Iterable[Iterable[float]],
+             normalized: bool,
+             step_scale: float,
+             coefficient_clipping: float | None) -> tuple[Iterable[float], Iterable[Iterable[float]]]:
+    offset_target = n_filter - idx_target - 1
+    pred_length = len(target) - n_filter + 1
+
+    prediction = []
+    for idx in range(0, pred_length):
+        # make prediction
+        w_sel = witness[:,idx:idx+n_filter] # input to predcition
+        pred = np.sum(filter_state * w_sel)
+        err = target[idx+offset_target] - pred
+
+        prediction.append(pred)
+
+        # update filter
+        if normalized:
+            norm = np.sum(w_sel * w_sel)
+            if norm < 0:
+                raise ValueError('Overflow! You are probably passing integers of insufficient precision to this function.')
+            filter_state += 2*step_scale*err*w_sel / norm
+        else:
+            filter_state += 2*step_scale*err*w_sel
+
+        if coefficient_clipping is not None:
+            filter_state = np.clip(filter_state, -coefficient_clipping, coefficient_clipping)
+    return np.array(prediction), filter_state, offset_target, pred_length
+
 
 class LMSFilter(FilterBase):
     """LMS filter implementation
@@ -77,32 +114,19 @@ class LMSFilter(FilterBase):
         witness, target = self.check_data_dimensions(witness, target)
         assert target is not None, "Target data must be supplied"
 
-        offset_target = self.n_filter - self.idx_target - 1
-        pred_length = len(target) - self.n_filter + 1
+        prediction, filter_state, offset_target, pred_length = _lms_loop(
+             witness,
+             target,
+             self.n_filter,
+             self.idx_target,
+             np.array(self.filter_state),
+             self.normalized,
+             self.step_scale,
+             self.coefficient_clipping,
+        )
 
-        filter_state = self.filter_state if update_state else np.array(self.filter_state)
-
-        # iterate over data (the python loop is very slow)
-        prediction = []
-        for idx in range(0, pred_length):
-            # make prediction
-            w_sel = witness[:,idx:idx+self.n_filter] # input to predcition
-            pred = np.einsum('ij,ij->', filter_state, w_sel)
-            err = target[idx+offset_target] - pred
-
-            prediction.append(pred)
-
-            # update filter
-            if self.normalized:
-                norm = np.einsum('ij,ij->', w_sel, w_sel)
-                if norm < 0:
-                    raise ValueError('Overflow! You are probably passing integers of insufficient precision to this function.')
-                filter_state += 2*self.step_scale*err*w_sel / norm
-            else:
-                filter_state += 2*self.step_scale*err*w_sel
-
-            if self.coefficient_clipping is not None:
-                filter_state = np.clip(filter_state, -self.coefficient_clipping, self.coefficient_clipping)
+        if update_state:
+            self.filter_state = filter_state
 
         prediction = np.array(prediction)
         if pad:
