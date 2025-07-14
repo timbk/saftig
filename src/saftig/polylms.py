@@ -2,9 +2,53 @@
 
 from typing import Iterable
 import numpy as np
+import numba
 
 from .common import FilterBase
 
+@numba.njit
+def _lms_loop(
+             witness: Iterable[Iterable[float]],
+             target: Iterable[float],
+             n_filter: int,
+             idx_target: int,
+             filter_state: Iterable[Iterable[float]],
+             normalized: bool,
+             step_scale: float,
+             coefficient_clipping: float | None,
+             order: int) -> tuple[Iterable[float], Iterable[Iterable[float]]]:
+    offset_target = n_filter - idx_target - 1
+    pred_length = len(target) - n_filter + 1
+
+    prediction = []
+    for idx in range(0, pred_length):
+        # make prediction
+        w_sel = witness[:,idx:idx+n_filter] # input to predcition
+        pred = 0
+        for i in range(order):
+            pred += np.sum(filter_state[i] * w_sel**(i+1))
+        err = target[idx+offset_target] - pred
+
+        prediction.append(pred)
+
+        # update filter
+        if normalized:
+            norm = np.sum(w_sel * w_sel)
+            if norm < 0:
+                raise ValueError('Overflow! You are probably passing integers of insufficient precision to this function.')
+
+            for i in range(order):
+                # NOTE: this might not be the correct/optimal normalization
+                filter_state[i] += 2*step_scale*err*w_sel**(i+1) / norm**((i+2)/2)
+        else:
+            for i in range(order):
+                filter_state[i] += 2*step_scale*err*w_sel**(i+1)
+
+        if coefficient_clipping is not None:
+            filter_state = np.clip(filter_state, -coefficient_clipping, coefficient_clipping)
+
+    prediction = np.array(prediction, dtype=np.float64)
+    return prediction, filter_state, offset_target, pred_length
 
 class PolynomialLMSFilter(FilterBase):
     r"""Experimental non-linear LMS-like filter implementation
@@ -84,35 +128,20 @@ class PolynomialLMSFilter(FilterBase):
         witness, target = self.check_data_dimensions(witness, target)
         assert target is not None, "Target data must be supplied"
 
-        offset_target = self.n_filter - self.idx_target - 1
-        pred_length = len(target) - self.n_filter + 1
+        prediction, filter_state, offset_target, pred_length = _lms_loop(
+             witness,
+             target,
+             self.n_filter,
+             self.idx_target,
+             np.array(self.filter_state),
+             self.normalized,
+             self.step_scale,
+             self.coefficient_clipping,
+             self.order,
+        )
 
-        filter_state = self.filter_state if update_state else np.array(self.filter_state)
-
-        # iterate over data (the python loop is very slow)
-        prediction = []
-        for idx in range(0, pred_length):
-            # make prediction
-            w_sel = witness[:,idx:idx+self.n_filter] # input to predcition
-            pred = sum( np.einsum('ij,ij->', filter_state[i], w_sel**(i+1)) for i in range(self.order))
-            err = target[idx+offset_target] - pred
-
-            prediction.append(pred)
-
-            # update filter
-            if self.normalized:
-                norm = np.einsum('ij,ij->', w_sel, w_sel)
-                if norm < 0:
-                    raise ValueError('Overflow! You are probably passing integers of insufficient precision to this function.')
-                for i in range(self.order):
-                    # NOTE: this might not be the correct/optimal normalization
-                    filter_state[i] += 2*self.step_scale*err*w_sel**(i+1) / norm**((i+2)/2)
-            else:
-                for i in range(self.order):
-                    filter_state[i] += 2*self.step_scale*err*w_sel**(i+1)
-
-            if self.coefficient_clipping is not None:
-                filter_state = np.clip(filter_state, -self.coefficient_clipping, self.coefficient_clipping)
+        if update_state:
+            self.filter_state = filter_state
 
         prediction = np.array(prediction)
         if pad:

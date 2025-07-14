@@ -2,9 +2,10 @@ import unittest
 
 import saftig as sg
 
-from .test_filters import TestFilter
+#from .test_filters import TestFilter
+from .test_lms import TestLMSFilter
 
-class TestPolynomialLMSFilter(unittest.TestCase, TestFilter):
+class TestPolynomialLMSFilter(TestLMSFilter):
     """ tests for the polynomial vaiant of a LeastMeanSquares filter implementation """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
