@@ -228,7 +228,9 @@ custom_module_exec(PyObject *m)
 static PyModuleDef_Slot module_slots[] = {
     {Py_mod_exec, (void *) custom_module_exec},
     // Just use this while using static types
+#if PY_VERSION_HEX >= 0x030C0000
     {Py_mod_multiple_interpreters, Py_MOD_MULTIPLE_INTERPRETERS_NOT_SUPPORTED},
+#endif
     {0, NULL},
 };
 
