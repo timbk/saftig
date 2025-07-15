@@ -20,6 +20,7 @@ dependencies = [
     "matplotlib",
     "icecream",
     "numba",
+    "psutil ~= 5.8",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
