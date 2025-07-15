@@ -1,5 +1,9 @@
+"""Run profiling with numpy set to singlethreading."""
 import os
-os.environ["OMP_NUM_THREADS"] = "1" # limit numy to a single thread
+# limit numy to a single thread
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
 
 import profile
 

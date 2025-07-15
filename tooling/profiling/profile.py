@@ -1,9 +1,16 @@
-MULTITHREAD = True
+"""Tooling to measure data throughput of filter implementations."""
 
 from typing import Iterable
-import saftig as sg
+import time
+import platform
+import subprocess
+from warnings import warn
+
+import psutil
 import numpy as np
-from icecream import ic
+import saftig as sg
+
+MULTITHREAD = True
 
 DEBUG = False
 IGNORE_FILTER_OPTIONS = {'coefficient_clipping', 'step_scale'}
@@ -11,14 +18,10 @@ IGNORE_FILTER_OPTIONS = {'coefficient_clipping', 'step_scale'}
 # filter, additional_filter_config, skip_conditioning
 FILTER_CONFIGURATIONS = [
     (sg.WienerFilter, {}, False),
-    (sg.UpdatingWienerFilter, {'context_pre': 300}, True),
     (sg.UpdatingWienerFilter, {'context_pre': 3000}, True),
     (sg.LMSFilter, {'normalized': True, 'coefficient_clipping': 10}, False),
-    (sg.LMSFilter, {'normalized': False, 'coefficient_clipping': 10, 'step_scale': 0.001}, False),
     (sg.LMSFilterC, {'normalized': True}, False),
-    (sg.LMSFilterC, {'normalized': False}, False),
     (sg.PolynomialLMSFilter, {'order': 1, 'coefficient_clipping': 10}, False),
-    (sg.PolynomialLMSFilter, {'order': 2, 'coefficient_clipping': 10}, False),
     (sg.PolynomialLMSFilter, {'order': 3, 'coefficient_clipping': 10}, False),
 ]
 
@@ -28,6 +31,31 @@ if DEBUG:
             (sg.LMSFilter, {'normalized': True}, False),
             (sg.UpdatingWienerFilter, {'context_pre': 1000}, True),
     ]
+
+def get_platform_info():
+    """Get a string that describes the operating system and CPU model."""
+    os = platform.system()
+
+    cpu = '-'
+    try:
+        if os == 'Linux':
+            cpu = subprocess.check_output('cat /proc/cpuinfo', shell=True).decode()
+            cpu = filter(lambda i: 'model name' in i, cpu.split('\n'))
+            cpu = next(cpu).split(':')[1].strip()
+        elif os == 'Darwin':
+            cpu = subprocess.check_output('sysctl -n machdep.cpu.brand_string', shell=True).decode().strip()
+            cpu += ' ' + subprocess.check_output('sysctl -n machdep.cpu.core_count', shell=True).decode().strip() + ' Cores'
+    except Exception as e:
+        cpu = '-'
+        warn(f'Could not get platform information ({repr(e)})')
+
+    return os + ', ' + cpu
+
+def get_git_hash() -> str:
+    """Get the current short git commit hash and add a + if there are uncommitted changes"""
+    git_hash = subprocess.check_output("git log --pretty=format:'%h' -n 1", shell=True).decode().strip()
+    git_local_changes = subprocess.run("git diff --quiet --exit-code", shell=True, check=False).returncode
+    return git_hash + ('+' if git_local_changes else '')
 
 def filter_configs_to_str(configs):
     """ build documenting strings for the given list of configuations """
@@ -50,7 +78,12 @@ def run_profiling(config, n_samples, n_filter, n_channel, idx_target=0):
     additional_settings = map(lambda x: x[1], config)
     skip_conditioning = list(map(lambda x: x[2], config))
 
-    results = sg.measure_runtime(filters, n_samples, n_filter=n_filter, n_channel=n_channel, additional_filter_settings=additional_settings, idx_target=idx_target)
+    results = sg.measure_runtime(filters,
+                                 n_samples,
+                                 n_filter=n_filter,
+                                 n_channel=n_channel,
+                                 additional_filter_settings=additional_settings,
+                                 idx_target=idx_target)
     results = np.array(results)
     results[0,skip_conditioning] = np.nan
     return results
@@ -74,7 +107,7 @@ def profiling_scan(target:str,
     all_values = ['n_filter', 'n_samples', 'idx_target', 'n_channel']
     assert target in all_values, f"target must be one of {all_values}"
     for key in all_values:
-        assert (key == target) or (key in other_values), f"A {key} must be provided through target_values"
+        assert (key == target) or (key in other_values), f"{key} must be the target value or provided through other_values"
 
     results = []
     for target_value in target_values:
@@ -91,35 +124,77 @@ def profiling_scan(target:str,
             'other_values': other_values,
             }
 
+def measure_cpu_load(function, *args, **kwargs):
+    """Run function with given args and get CPU load.
+       Cpu load is measured before, during, and after execution.
+       Values are reported relative to the whole system.
+       A load of one means all cpu cores are fully loaded.
+    """
+    psutil.cpu_percent() # start measurement
+    time.sleep(1) # delay for accurate cpu load measurement
+    cpu_load = [psutil.cpu_percent()*1e-2]
+
+    results = function(*args, **kwargs)
+    cpu_load += [psutil.cpu_percent()*1e-2]
+
+    time.sleep(1) # delay for accurate cpu load measurement
+    cpu_load += [psutil.cpu_percent()*1e-2]
+
+    print('\tCPU load '+' '.join(f'{i*100:.1f}%' for i in cpu_load))
+    return results, cpu_load
+
 def run_and_save_scan(target, values, default_values, filter_config, **file_additions):
-    results = profiling_scan(target, values, default_values, filter_config)
+    """Run a throughput measurement scan and save the result with context information in a numpy dump."""
+    # run profiling and measure total duration
+    start = time.time()
+    results, cpu_load = measure_cpu_load(profiling_scan, target, values, default_values, filter_config)
+    end = time.time()
+
+    # save results to numpy dump
+    additional_info = {'platform': get_platform_info(), 'git_hash': get_git_hash(), 'cpu_load': cpu_load}
     np.savez(f'results/results_{target}_{"mt" if MULTITHREAD else "st"}.npz',
              multithreaded=MULTITHREAD,
              **results,
-             **file_additions)
+             **file_additions,
+             **additional_info)
+
+    return end-start
 
 def main():
-    # run all filters once
-    # this triggers e.g. numba compiles that would otherwise slow down the first exection
-    print('prime filters')
-    default_values = {'n_samples':int(1e4), 'n_channel': 1, 'n_filter': 128, 'idx_target': 0}
-    n_filter_values = [10]
-    profiling_scan('n_filter', n_filter_values, default_values, FILTER_CONFIGURATIONS)
+    """Main function, runs a default profiling job."""
+    # target, target_values, default_values, log_scale, save_results
+    parameter_scans = [
+        ( 'n_filter',
+          [10],
+          {'n_samples': int(1e4), 'n_channel': 1, 'n_filter': 16, 'idx_target': 0},
+          True,
+          False),
+        ( 'n_filter',
+          [10, 30, 100, 300, 1000],
+          {'n_samples': int(1e4), 'n_channel': 1, 'n_filter': 128, 'idx_target': 0},
+          True,
+          True),
+        ( 'n_channel',
+          [1, 2, 3],
+          {'n_samples': int(1e4), 'n_channel': 1, 'n_filter': 128, 'idx_target': 0},
+          False,
+          True),
+        ( 'n_samples',
+          (10**np.arange(2, 5.6, 0.5)).astype(int),
+          {'n_samples': int(1e4), 'n_channel': 1, 'n_filter': 32, 'idx_target': 0},
+          True,
+          True),
+    ]
 
-    print('n_filter')
-    default_values = {'n_samples':int(1e4), 'n_channel': 1, 'n_filter': 128, 'idx_target': 0}
-    n_filter_values = [10, 30, 100, 300, 1000]
-    run_and_save_scan('n_filter', n_filter_values, default_values, FILTER_CONFIGURATIONS)
-
-    print('n_channel')
-    default_values = {'n_samples':int(1e4), 'n_channel': 1, 'n_filter': 32, 'idx_target': 0}
-    n_channel_values = [1, 2, 3]
-    run_and_save_scan('n_channel', n_channel_values, default_values, FILTER_CONFIGURATIONS, x_log=False)
-
-    print('n_samples')
-    default_values = {'n_samples':int(1e4), 'n_channel': 1, 'n_filter': 32, 'idx_target': 0}
-    n_samples_values = np.array([1e3, 3e3, 1e4, 3e4], dtype=np.int64)
-    run_and_save_scan('n_samples', n_samples_values, default_values, FILTER_CONFIGURATIONS)
+    for target, target_values, default_values, x_log, save_results in parameter_scans:
+        if save_results:
+            print(target)
+            runtime = run_and_save_scan(target, target_values, default_values, FILTER_CONFIGURATIONS, x_log=x_log)
+            print(f'\tdone in {runtime:.1f} s')
+        else:
+            # this triggers e.g. numba compiles that would otherwise slow down the first exection
+            print('priming filters')
+            profiling_scan(target, target_values, default_values, FILTER_CONFIGURATIONS)
 
 if __name__ == "__main__":
     main()
