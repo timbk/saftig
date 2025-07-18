@@ -1,14 +1,16 @@
 SHELL := /bin/bash
 
-all: build doc test linter
+all: build doc coverage linter
 ie:
 	pip install --no-build-isolation -e .
 
 test:
-	coverage run -m unittest discover .
-coverage:
+	python -m unittest discover .
+test_coverage:
+	export NUMBA_DISABLE_JIT=1 && coverage run -m unittest discover .
+coverage: test_coverage
 	coverage report
-cweb:
+cweb: test_coverage
 	coverage html && open htmlcov/index.html
 
 linter:
@@ -36,4 +38,4 @@ testpublish:
 	python -m build -s
 	twine upload --repository testpypi dist/*
 
-.PHONY: all, doc, view, test, linter, coverage, cweb, linter_testing, lt, build, clean, testpublish, ie
+.PHONY: all, doc, view, test, linter, coverage, cweb, linter_testing, lt, build, clean, testpublish, ie, test_coverage
