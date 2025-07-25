@@ -11,8 +11,9 @@ module_list = [
     sg.polylms,
 ]
 
+
 def load_tests(_loader, tests, _ignore):
-    """ load doctests as unittests """
+    """load doctests as unittests"""
     for module in module_list:
         tests.addTests(doctest.DocTestSuite(module))
     return tests

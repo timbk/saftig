@@ -1,10 +1,12 @@
-""" faster LMS filter implemented in c """
+"""faster LMS filter implemented in c"""
+
 from typing import Iterable
 import numpy as np
 
-#from ._lms_c import lms_step_c
+# from ._lms_c import lms_step_c
 from ._lms_c import LMS_C
 from .common import FilterBase
+
 
 class LMSFilterC(FilterBase):
     """LMS filter implementation in C (faster but harder to adjust)
@@ -26,43 +28,52 @@ class LMSFilterC(FilterBase):
     True
 
     """
+
     filter_name = "LMS_C"
 
-    def __init__(self,
-                 n_filter:int,
-                 idx_target:int,
-                 n_channel:int,
-                 step_scale:float=0.1,
-                 normalized:bool=True,
-                 coefficient_clipping:float|None=None):
+    def __init__(
+        self,
+        n_filter: int,
+        idx_target: int,
+        n_channel: int,
+        step_scale: float = 0.1,
+        normalized: bool = True,
+        coefficient_clipping: float | None = None,
+    ):
         super().__init__(n_filter, idx_target, n_channel)
-        self.filter = LMS_C(n_filter,
-                            idx_target,
-                            n_channel,
-                            step_scale,
-                            normalized,
-                            np.nan if coefficient_clipping is None else coefficient_clipping)
+        self.filter = LMS_C(
+            n_filter,
+            idx_target,
+            n_channel,
+            step_scale,
+            normalized,
+            np.nan if coefficient_clipping is None else coefficient_clipping,
+        )
 
     def reset(self) -> None:
-        """ reset the filter coefficients to zero """
+        """reset the filter coefficients to zero"""
         raise RuntimeError("This is not implemented yet")
 
-    def condition(self,
-                  witness:Iterable[float]|Iterable[Iterable[float]],
-                  target:Iterable[float]) -> bool:
-        """ Use an input dataset to condition the filter
+    def condition(
+        self,
+        witness: Iterable[float] | Iterable[Iterable[float]],
+        target: Iterable[float],
+    ) -> bool:
+        """Use an input dataset to condition the filter
 
         :param witness: Witness sensor data
         :param target: Target sensor data
         """
         self.apply(witness, target, update_state=True)
 
-    def apply(self,
-              witness:Iterable[float]|Iterable[Iterable[float]],
-              target:Iterable[float]=None,
-              pad:bool=True,
-              update_state:bool=False) -> Iterable[float]:
-        """ Apply the filter to input data
+    def apply(
+        self,
+        witness: Iterable[float] | Iterable[Iterable[float]],
+        target: Iterable[float] = None,
+        pad: bool = True,
+        update_state: bool = False,
+    ) -> Iterable[float]:
+        """Apply the filter to input data
 
         :param witness: Witness sensor data
         :param target: Target sensor data (is ignored)
@@ -79,17 +90,19 @@ class LMSFilterC(FilterBase):
         # iterate over data (the python loop is very slow)
         prediction = []
         for idx in range(0, pred_length):
-            w_sel = witness[:,idx:idx+self.n_filter] # input to predcition
+            w_sel = witness[:, idx : idx + self.n_filter]  # input to predcition
 
-            pred = self.filter.step(w_sel, target[idx+offset_target])
+            pred = self.filter.step(w_sel, target[idx + offset_target])
             prediction.append(pred)
 
         prediction = np.array(prediction)
         if pad:
-            prediction = np.concatenate([
-                np.zeros(offset_target),
-                prediction,
-                np.zeros(len(target)-pred_length-offset_target)
-                ])
+            prediction = np.concatenate(
+                [
+                    np.zeros(offset_target),
+                    prediction,
+                    np.zeros(len(target) - pred_length - offset_target),
+                ]
+            )
 
         return prediction
