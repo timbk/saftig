@@ -108,7 +108,7 @@ class WienerFilter(FilterBase):
 
     def condition(self,
                   witness:Iterable[float]|Iterable[Iterable[float]],
-                  target:Iterable[float]) -> bool:
+                  target:Iterable[float]):
         """ Use an input dataset to condition the filter
 
         :param witness: Witness sensor data

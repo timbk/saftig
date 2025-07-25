@@ -30,3 +30,15 @@ py.install_sources(
   pure: false,
   subdir: 'saftig'
 )
+
+python_sources_external = [
+  'saftig/external/__init__.py',
+  'saftig/external/spicypy_wf.py',
+]
+
+# install the saftig.external module
+py.install_sources(
+  python_sources_external,
+  pure: false,
+  subdir: 'saftig/external'
+)
