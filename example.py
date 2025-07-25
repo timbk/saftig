@@ -7,7 +7,7 @@ import cProfile
 import timeit
 
 # settings
-N = int(1e5)
+N = int(1e4)
 N_filter = 128
 N_channel = 1
 
@@ -35,7 +35,8 @@ if __name__ == "__main__":
     #filt = saftig.UpdatingWienerFilter(N_filter, 0, N_channel, 20*N_filter, 20*N_filter)
     #filt = saftig.LMSFilter(N_filter, 0, N_channel, step_scale=0.1)
     #filt = saftig.PolynomialLMSFilter(N_filter, 0, N_channel, step_scale=0.1, order=3, coefficient_clipping=5)
-    filt = saftig.LMSFilterC(N_filter, 0, N_channel, step_scale=0.1)
+    #filt = saftig.LMSFilterC(N_filter, 0, N_channel, step_scale=0.1)
+    filt = saftig.external.SpicypyWienerFilter(N_filter, 0, N_channel)
 
     filt.condition(w, t)
     fs_before = np.array(filt.filter_state)

@@ -7,12 +7,19 @@ class TestFilter:
     """ Parent class for all filter testingr
     Contains common test cases and testing tools
     """
-    #: The to-be-tested filter class
+    # The to-be-tested filter class
     target_filter = None
-    #: to-be-tested configurations
+    # to-be-tested configurations
     default_filter_parameters = None
 
-    def __ini__(self):
+    # settings to check performance
+    expected_performance = {
+        # noise level, (acceptance min, acceptance_max)
+        0.0: (0, 0.05),
+        0.1: (0.05, 0.15),
+    }
+
+    def __init__(self):
         raise RuntimeError("This only functions as a parent class!")
 
     def set_target(self, target_filter, default_filter_parameters=None) -> None:
@@ -76,10 +83,7 @@ class TestFilter:
 
     def test_performance(self):
         """ check that the filter reaches a WF-Like performance on a simple static test case """
-        noise_levels = [0, 0.1]
-        maximum_acceptable_residual = [(0, 0.05), (0.05, 0.15)]
-
-        for noise_level, acceptable_residual in zip(noise_levels, maximum_acceptable_residual):
+        for noise_level, acceptable_residual in self.expected_performance.items():
             n_filter = 32
             witness, target = sg.TestDataGenerator([noise_level]*2).generate(int(2e4))
 

@@ -21,6 +21,7 @@ dependencies = [
     "icecream",
     "numba",
     "psutil ~= 5.8",
+    "spicypy ~= 0.9",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
