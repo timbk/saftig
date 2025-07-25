@@ -1,4 +1,5 @@
-""" Updating Wiener Filter """
+"""Updating Wiener Filter"""
+
 from typing import Iterable
 from warnings import warn
 
@@ -6,6 +7,7 @@ import numpy as np
 
 from .common import FilterBase
 from .wf import wf_calculate, wf_apply
+
 
 class UpdatingWienerFilter(FilterBase):
     """Updating Wiener filter implementation
@@ -29,34 +31,42 @@ class UpdatingWienerFilter(FilterBase):
     """
 
     #: The FIR coefficients of the WF
-    filter_state:Iterable[Iterable[float]]|None = None
+    filter_state: Iterable[Iterable[float]] | None = None
     filter_name = "UWF"
 
-    def __init__(self,
-                 n_filter:int,
-                 idx_target:int,
-                 n_channel:int=1,
-                 context_pre:int=0,
-                 context_post:int=0):
+    def __init__(
+        self,
+        n_filter: int,
+        idx_target: int,
+        n_channel: int = 1,
+        context_pre: int = 0,
+        context_post: int = 0,
+    ):
         super().__init__(n_filter, idx_target, n_channel)
         self.context_pre = context_pre
-        self.context_post= context_post
+        self.context_post = context_post
 
-    def condition(self,
-                  witness:Iterable[float]|Iterable[Iterable[float]],
-                  target:Iterable[float],
-                  hide_warning:bool=False) -> None:
-        """ Placeholder for compatibility to other filters; does nothing!
-        """
+    def condition(
+        self,
+        witness: Iterable[float] | Iterable[Iterable[float]],
+        target: Iterable[float],
+        hide_warning: bool = False,
+    ) -> None:
+        """Placeholder for compatibility to other filters; does nothing!"""
         if not hide_warning:
-            warn("Warning: UpdatingWienerFilter.condition() is just a placeholder, it has no effect.", RuntimeWarning)
+            warn(
+                "Warning: UpdatingWienerFilter.condition() is just a placeholder, it has no effect.",
+                RuntimeWarning,
+            )
 
-    def apply(self,
-              witness:Iterable[float]|Iterable[Iterable[float]],
-              target:Iterable[float]=None,
-              pad:bool=True,
-              update_state:bool=False) -> Iterable[float]:
-        """ Apply the filter to input data
+    def apply(
+        self,
+        witness: Iterable[float] | Iterable[Iterable[float]],
+        target: Iterable[float] = None,
+        pad: bool = True,
+        update_state: bool = False,
+    ) -> Iterable[float]:
+        """Apply the filter to input data
 
         :param witness: Witness sensor data
         :param target: Target sensor data (is ignored)
@@ -70,20 +80,30 @@ class UpdatingWienerFilter(FilterBase):
         all_full_rank = True
         additional_padding = 0
         prediction = []
-        for idx in range(self.n_filter-1, len(target), self.n_filter):
+        for idx in range(self.n_filter - 1, len(target), self.n_filter):
             # calculate filter coefficients
-            selection_conditioning = np.arange(max(0, idx-self.context_pre), min(len(target), idx+self.n_filter+self.context_post))
+            selection_conditioning = np.arange(
+                max(0, idx - self.context_pre),
+                min(len(target), idx + self.n_filter + self.context_post),
+            )
             if len(selection_conditioning) < self.n_filter:
                 additional_padding = len(selection_conditioning)
                 break
-            self.filter_state, full_rank = wf_calculate(witness[:,selection_conditioning],
-                                                        target[selection_conditioning],
-                                                        self.n_filter,
-                                                        idx_target=self.idx_target)
-            all_full_rank &= full_rank # a numpy bool doesn't mix well with non-numpy here
+            self.filter_state, full_rank = wf_calculate(
+                witness[:, selection_conditioning],
+                target[selection_conditioning],
+                self.n_filter,
+                idx_target=self.idx_target,
+            )
+            all_full_rank &= (
+                full_rank  # a numpy bool doesn't mix well with non-numpy here
+            )
 
             # apply
-            w_sel = witness[:,max(0, idx-self.n_filter+1):min(idx+self.n_filter, len(target))]
+            w_sel = witness[
+                :,
+                max(0, idx - self.n_filter + 1) : min(idx + self.n_filter, len(target)),
+            ]
             if w_sel.shape[1] < self.n_filter:
                 additional_padding = w_sel.shape[1]
                 break
@@ -91,8 +111,14 @@ class UpdatingWienerFilter(FilterBase):
             prediction += list(p)
 
         if not all_full_rank:
-            warn('Warning: not all UWF blocks had full rank', RuntimeWarning)
+            warn("Warning: not all UWF blocks had full rank", RuntimeWarning)
 
         if pad:
-            prediction = np.concatenate([np.zeros(self.n_filter-1-self.idx_target), prediction, np.zeros(self.idx_target + additional_padding)])
+            prediction = np.concatenate(
+                [
+                    np.zeros(self.n_filter - 1 - self.idx_target),
+                    prediction,
+                    np.zeros(self.idx_target + additional_padding),
+                ]
+            )
         return prediction

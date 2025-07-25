@@ -1,4 +1,4 @@
-""" experiment in building a polynomial lms filter """
+"""experiment in building a polynomial lms filter"""
 
 from typing import Iterable
 import numpy as np
@@ -6,28 +6,30 @@ import numba
 
 from .common import FilterBase
 
+
 @numba.njit
 def _lms_loop(
-             witness: Iterable[Iterable[float]],
-             target: Iterable[float],
-             n_filter: int,
-             idx_target: int,
-             filter_state: Iterable[Iterable[float]],
-             normalized: bool,
-             step_scale: float,
-             coefficient_clipping: float | None,
-             order: int) -> tuple[Iterable[float], Iterable[Iterable[float]]]:
+    witness: Iterable[Iterable[float]],
+    target: Iterable[float],
+    n_filter: int,
+    idx_target: int,
+    filter_state: Iterable[Iterable[float]],
+    normalized: bool,
+    step_scale: float,
+    coefficient_clipping: float | None,
+    order: int,
+) -> tuple[Iterable[float], Iterable[Iterable[float]]]:
     offset_target = n_filter - idx_target - 1
     pred_length = len(target) - n_filter + 1
 
     prediction = []
     for idx in range(0, pred_length):
         # make prediction
-        w_sel = witness[:,idx:idx+n_filter] # input to predcition
+        w_sel = witness[:, idx : idx + n_filter]  # input to predcition
         pred = 0
         for i in range(order):
-            pred += np.sum(filter_state[i] * w_sel**(i+1))
-        err = target[idx+offset_target] - pred
+            pred += np.sum(filter_state[i] * w_sel ** (i + 1))
+        err = target[idx + offset_target] - pred
 
         prediction.append(pred)
 
@@ -35,20 +37,27 @@ def _lms_loop(
         if normalized:
             norm = np.sum(w_sel * w_sel)
             if norm < 0:
-                raise ValueError('Overflow! You are probably passing integers of insufficient precision to this function.')
+                raise ValueError(
+                    "Overflow! You are probably passing integers of insufficient precision to this function."
+                )
 
             for i in range(order):
                 # NOTE: this might not be the correct/optimal normalization
-                filter_state[i] += 2*step_scale*err*w_sel**(i+1) / norm**((i+2)/2)
+                filter_state[i] += (
+                    2 * step_scale * err * w_sel ** (i + 1) / norm ** ((i + 2) / 2)
+                )
         else:
             for i in range(order):
-                filter_state[i] += 2*step_scale*err*w_sel**(i+1)
+                filter_state[i] += 2 * step_scale * err * w_sel ** (i + 1)
 
         if coefficient_clipping is not None:
-            filter_state = np.clip(filter_state, -coefficient_clipping, coefficient_clipping)
+            filter_state = np.clip(
+                filter_state, -coefficient_clipping, coefficient_clipping
+            )
 
     prediction = np.array(prediction, dtype=np.float64)
     return prediction, filter_state, offset_target, pred_length
+
 
 class PolynomialLMSFilter(FilterBase):
     r"""Experimental non-linear LMS-like filter implementation
@@ -74,17 +83,19 @@ class PolynomialLMSFilter(FilterBase):
     """
 
     #: The current FIR coefficients of the LMS filter
-    filter_state:Iterable[Iterable[Iterable[float]]]|None = None
+    filter_state: Iterable[Iterable[Iterable[float]]] | None = None
     filter_name = "PolyLMS"
 
-    def __init__(self,
-                 n_filter:int,
-                 idx_target:int,
-                 n_channel:int=1,
-                 normalized:bool=True,
-                 step_scale:float=0.5,
-                 coefficient_clipping:float|None=None,
-                 order:int=1):
+    def __init__(
+        self,
+        n_filter: int,
+        idx_target: int,
+        n_channel: int = 1,
+        normalized: bool = True,
+        step_scale: float = 0.5,
+        coefficient_clipping: float | None = None,
+        order: int = 1,
+    ):
         super().__init__(n_filter, idx_target, n_channel)
         self.normalized = normalized
         self.step_scale = step_scale
@@ -92,31 +103,37 @@ class PolynomialLMSFilter(FilterBase):
         self.order = order
 
         assert self.step_scale > 0, "Step scale must be positive"
-        assert self.coefficient_clipping is None or self.coefficient_clipping > 0, "coefficient_clipping must be positive"
+        assert (
+            self.coefficient_clipping is None or self.coefficient_clipping > 0
+        ), "coefficient_clipping must be positive"
         assert self.order > 0
 
         self.reset()
 
     def reset(self) -> None:
-        """ reset the filter coefficients to zero """
+        """reset the filter coefficients to zero"""
         self.filter_state = np.zeros((self.order, self.n_channel, self.n_filter))
 
-    def condition(self,
-                  witness:Iterable[float]|Iterable[Iterable[float]],
-                  target:Iterable[float]) -> bool:
-        """ Use an input dataset to condition the filter
+    def condition(
+        self,
+        witness: Iterable[float] | Iterable[Iterable[float]],
+        target: Iterable[float],
+    ) -> bool:
+        """Use an input dataset to condition the filter
 
         :param witness: Witness sensor data
         :param target: Target sensor data
         """
         self.apply(witness, target, update_state=True)
 
-    def apply(self,
-              witness:Iterable[float]|Iterable[Iterable[float]],
-              target:Iterable[float]=None,
-              pad:bool=True,
-              update_state:bool=False) -> Iterable[float]:
-        """ Apply the filter to input data
+    def apply(
+        self,
+        witness: Iterable[float] | Iterable[Iterable[float]],
+        target: Iterable[float] = None,
+        pad: bool = True,
+        update_state: bool = False,
+    ) -> Iterable[float]:
+        """Apply the filter to input data
 
         :param witness: Witness sensor data
         :param target: Target sensor data (is ignored)
@@ -129,15 +146,15 @@ class PolynomialLMSFilter(FilterBase):
         assert target is not None, "Target data must be supplied"
 
         prediction, filter_state, offset_target, pred_length = _lms_loop(
-             witness,
-             target,
-             self.n_filter,
-             self.idx_target,
-             np.array(self.filter_state),
-             self.normalized,
-             self.step_scale,
-             self.coefficient_clipping,
-             self.order,
+            witness,
+            target,
+            self.n_filter,
+            self.idx_target,
+            np.array(self.filter_state),
+            self.normalized,
+            self.step_scale,
+            self.coefficient_clipping,
+            self.order,
         )
 
         if update_state:
@@ -145,10 +162,12 @@ class PolynomialLMSFilter(FilterBase):
 
         prediction = np.array(prediction)
         if pad:
-            prediction = np.concatenate([
-                np.zeros(offset_target),
-                prediction,
-                np.zeros(len(target)-pred_length-offset_target)
-                ])
+            prediction = np.concatenate(
+                [
+                    np.zeros(offset_target),
+                    prediction,
+                    np.zeros(len(target) - pred_length - offset_target),
+                ]
+            )
 
         return prediction

@@ -3,10 +3,12 @@ import warnings
 
 import saftig as sg
 
+
 class TestFilter:
-    """ Parent class for all filter testingr
+    """Parent class for all filter testingr
     Contains common test cases and testing tools
     """
+
     # The to-be-tested filter class
     target_filter = None
     # to-be-tested configurations
@@ -23,7 +25,7 @@ class TestFilter:
         raise RuntimeError("This only functions as a parent class!")
 
     def set_target(self, target_filter, default_filter_parameters=None) -> None:
-        """ set the target filter and configurtions
+        """set the target filter and configurtions
         This is required to run the common tests
 
         :param target_filter: The to-be-tested filter class
@@ -35,41 +37,43 @@ class TestFilter:
         self.target_filter = target_filter
         self.default_filter_parameters = default_filter_parameters
 
-    def instantiate_filters(self, n_filter=128, idx_target=0, n_channel=1) -> Iterable[sg.common.FilterBase]:
-        """ instantiate the target filter for all configurations """
+    def instantiate_filters(
+        self, n_filter=128, idx_target=0, n_channel=1
+    ) -> Iterable[sg.common.FilterBase]:
+        """instantiate the target filter for all configurations"""
         for parameters in self.default_filter_parameters:
             yield self.target_filter(n_filter, idx_target, n_channel, **parameters)
 
     def test_exception_on_missshaped_input(self):
-        """ check that matching exceptions are thrown for obviously wrong input shapes """
+        """check that matching exceptions are thrown for obviously wrong input shapes"""
         n_filter = 128
         witness, target = sg.TestDataGenerator(0.1).generate(int(1e4))
 
         for filt in self.instantiate_filters(n_filter):
-            with warnings.catch_warnings(): # warnings are expected here
+            with warnings.catch_warnings():  # warnings are expected here
                 warnings.simplefilter("ignore")
                 filt.condition(witness, target)
             self.assertRaises(ValueError, filt.apply, 1, 1)
             self.assertRaises(ValueError, filt.apply, [[[1], [1]]], [1])
 
     def test_acceptance_of_minimum_input_length(self):
-        """ check that the filter works with the minimum input length of two filter lengths """
+        """check that the filter works with the minimum input length of two filter lengths"""
         n_filter = 128
-        witness, target = sg.TestDataGenerator(0.1).generate(n_filter*2)
+        witness, target = sg.TestDataGenerator(0.1).generate(n_filter * 2)
 
         for filt in self.instantiate_filters(n_filter):
-            with warnings.catch_warnings(): # warnings are expected here
+            with warnings.catch_warnings():  # warnings are expected here
                 warnings.simplefilter("ignore")
                 filt.condition(witness, target)
                 filt.apply(witness, target)
 
     def test_output_shapes(self):
-        """ check output shapes """
+        """check output shapes"""
         n_filter = 128
         witness, target = sg.TestDataGenerator(0.1).generate(int(1e4))
 
         for filt in self.instantiate_filters(n_filter):
-            with warnings.catch_warnings(): # warnings are expected here
+            with warnings.catch_warnings():  # warnings are expected here
                 warnings.simplefilter("ignore")
                 filt.condition(witness, target)
 
@@ -82,14 +86,16 @@ class TestFilter:
             self.assertEqual(len(prediction), len(target) - n_filter + 1)
 
     def test_performance(self):
-        """ check that the filter reaches a WF-Like performance on a simple static test case """
+        """check that the filter reaches a WF-Like performance on a simple static test case"""
         for noise_level, acceptable_residual in self.expected_performance.items():
             n_filter = 32
-            witness, target = sg.TestDataGenerator([noise_level]*2).generate(int(2e4))
+            witness, target = sg.TestDataGenerator([noise_level] * 2).generate(int(2e4))
 
-            for idx_target in [0, int(n_filter/2), n_filter-1]:
-                for filt in self.instantiate_filters(n_filter, n_channel=2, idx_target=idx_target):
-                    with warnings.catch_warnings(): # warnings are expected here
+            for idx_target in [0, int(n_filter / 2), n_filter - 1]:
+                for filt in self.instantiate_filters(
+                    n_filter, n_channel=2, idx_target=idx_target
+                ):
+                    with warnings.catch_warnings():  # warnings are expected here
                         warnings.simplefilter("ignore")
                         filt.condition(witness, target)
                         prediction = filt.apply(witness, target)

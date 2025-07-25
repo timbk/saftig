@@ -1,6 +1,7 @@
 """Static & Adaptive Filtering In Gravitational-wave-research
 Implementations of prediction techniques with a unified interface.
 """
+
 from saftig import external
 
 from .common import RMS, total_power
