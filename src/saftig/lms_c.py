@@ -1,10 +1,10 @@
 """faster LMS filter implemented in c"""
 
-from typing import Iterable
+from collections.abc import Sequence
 import numpy as np
+from numpy.typing import NDArray
 
-# from ._lms_c import lms_step_c
-from ._lms_c import LMS_C
+from ._lms_c import LMS_C  # type: ignore[attr-defined]
 from .common import FilterBase
 
 
@@ -56,9 +56,9 @@ class LMSFilterC(FilterBase):
 
     def condition(
         self,
-        witness: Iterable[float] | Iterable[Iterable[float]],
-        target: Iterable[float],
-    ) -> bool:
+        witness: Sequence[float] | Sequence[Sequence[float]],
+        target: Sequence[float],
+    ):
         """Use an input dataset to condition the filter
 
         :param witness: Witness sensor data
@@ -68,11 +68,11 @@ class LMSFilterC(FilterBase):
 
     def apply(
         self,
-        witness: Iterable[float] | Iterable[Iterable[float]],
-        target: Iterable[float] = None,
+        witness: Sequence | NDArray,
+        target: Sequence | NDArray,
         pad: bool = True,
         update_state: bool = False,
-    ) -> Iterable[float]:
+    ) -> NDArray:
         """Apply the filter to input data
 
         :param witness: Witness sensor data
@@ -88,21 +88,20 @@ class LMSFilterC(FilterBase):
         pred_length = len(target) - self.n_filter + 1
 
         # iterate over data (the python loop is very slow)
-        prediction = []
+        prediction: NDArray = np.zeros(pred_length)
         for idx in range(0, pred_length):
             w_sel = witness[:, idx : idx + self.n_filter]  # input to predcition
 
             pred = self.filter.step(w_sel, target[idx + offset_target])
-            prediction.append(pred)
+            prediction[idx] = pred
 
-        prediction = np.array(prediction)
         if pad:
             prediction = np.concatenate(
-                [
+                (
                     np.zeros(offset_target),
                     prediction,
                     np.zeros(len(target) - pred_length - offset_target),
-                ]
+                )
             )
 
         return prediction

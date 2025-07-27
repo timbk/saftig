@@ -1,16 +1,25 @@
 """Clasical static Wiener filter"""
 
-from typing import Union, Iterable
+from typing import Union, Tuple, Optional
+from collections.abc import Sequence
 from warnings import warn
 
 import numpy as np
+from numpy.typing import NDArray
 from scipy.signal import correlate
 
 from .common import FilterBase, make_2d_array
 
 
-def mean_cross_correlation_offset(A, B, N, offset) -> Iterable[float]:
-    """estimate the cross-correlation between A and B"""
+def mean_cross_correlation_offset(
+    A: Sequence | NDArray, B: Sequence | NDArray, N: int, offset: int
+) -> Sequence:
+    """estimate the cross-correlation between A and B
+    :param A: First input array
+    :param B: Second input array
+    :param N: Number of steps to test. Defines length of output
+    :param offset: Offset for the cross correlation
+    """
     assert len(A) == len(B)
     assert offset < N
 
@@ -20,11 +29,11 @@ def mean_cross_correlation_offset(A, B, N, offset) -> Iterable[float]:
 
 
 def wf_calculate(
-    witness: Iterable[float] | Iterable[Iterable[float]],
-    target: Iterable[float],
+    witness: Sequence | NDArray,
+    target: Sequence | NDArray,
     n_filter: int,
     idx_target: int = 0,
-) -> Union[Iterable[Iterable[float]], bool]:
+) -> Tuple[NDArray, bool]:
     """caluclate the FIR coefficients for a wiener filter
 
     :param witness: Witness sensor data
@@ -34,18 +43,23 @@ def wf_calculate(
 
     :return: filter coefficients, full_rank (bool)
     """
-    target = np.array(target)
-    witness = make_2d_array(witness)
+    target_npy: NDArray = np.array(target)
+    witness_npy: NDArray = make_2d_array(witness)
     assert (
-        witness.shape[1] == target.shape[0]
-    ), "Missmatch between witness and target data shape"
-    assert n_filter <= target.shape[0], "Input data must be at least one filter length"
+        witness_npy.shape[1] == target_npy.shape[0]
+    ), "Missmatch between witness_npy and target_npy data shape"
+    assert (
+        n_filter <= target_npy.shape[0]
+    ), "Input data must be at least one filter length"
 
-    # calculate input autocorrelation and cross-correlation to target
-    R_ws = [
-        mean_cross_correlation_offset(target, A, n_filter, idx_target) for A in witness
-    ]  # R_ws[channel, time]
-    R_ws = np.array(R_ws).flatten(order="C")
+    # calculate input autocorrelation and cross-correlation to target_npy
+    # R_ws[channel, time]
+    R_ws = np.array(
+        [
+            mean_cross_correlation_offset(target_npy, A, n_filter, idx_target)
+            for A in witness_npy
+        ]
+    ).flatten(order="C")
 
     def calc_r_matrix(A, B, n_filter):
         """calculate the cross correlation matrix of a and b"""
@@ -67,24 +81,24 @@ def wf_calculate(
         )
 
     if (
-        len(target) >= 3 * n_filter
+        len(target_npy) >= 3 * n_filter
     ):  # using both sides is only possible if enough data is provided
         R_ww = np.block(
             [
-                [calc_r_matrix_symmetric(A, B, n_filter) for B in witness]
-                for A in witness
+                [calc_r_matrix_symmetric(A, B, n_filter) for B in witness_npy]
+                for A in witness_npy
             ]
         )
     else:
         R_ww = np.block(
-            [[calc_r_matrix(A, B, n_filter) for B in witness] for A in witness]
+            [[calc_r_matrix(A, B, n_filter) for B in witness_npy] for A in witness_npy]
         )
 
     # calculate pseudo-inverse correlation matrix of inputs and the filter coefficients
     # for some reason the scipy.linalg implementations were extremely slow on white noise test case => using numpy
     full_rank = bool(np.linalg.matrix_rank(R_ww, hermitian=True) == len(R_ww[0]))
     R_ww_inv = np.linalg.pinv(R_ww, hermitian=True)
-    WFC = R_ww_inv.dot(R_ws)
+    WFC = R_ww_inv.dot(np.array(R_ws))
 
     # unwrap into seperate FIR filters
     WFC = WFC.reshape((len(witness), n_filter))
@@ -98,8 +112,9 @@ def wf_calculate(
 
 
 def wf_apply(
-    WFC: Iterable[Iterable[float]], witness: Iterable[Iterable[float]]
-) -> Iterable[Iterable[float]]:
+    WFC: Sequence | NDArray,
+    witness: Sequence | NDArray,
+) -> NDArray:
     """apply the WF to witness data
 
     :param witness: Witness sensor data
@@ -108,9 +123,9 @@ def wf_apply(
     :return: prediction
     """
     assert len(witness[0]) >= len(WFC[0]), "Input minimum lenght is one filter length"
-    witness = np.array(witness).astype(np.longdouble)
+    witness_npy = np.array(witness).astype(np.longdouble)
     return np.sum(
-        [correlate(A, WF, mode="valid") for A, WF in zip(witness, WFC)], axis=0
+        [correlate(A, WF, mode="valid") for A, WF in zip(witness_npy, WFC)], axis=0
     )
 
 
@@ -136,23 +151,25 @@ class WienerFilter(FilterBase):
     """
 
     #: The FIR coefficients of the WF
-    filter_state: Iterable[Iterable[float]] | None = None
+    filter_state: NDArray | None = None
     filter_name = "WF"
 
     def condition(
         self,
-        witness: Iterable[float] | Iterable[Iterable[float]],
-        target: Iterable[float],
+        witness: Sequence,
+        target: Sequence,
     ):
         """Use an input dataset to condition the filter
 
         :param witness: Witness sensor data
         :param target: Target sensor data
         """
-        witness, target = self.check_data_dimensions(witness, target)
+        self.requries_apply_target = False
+
+        witness_npy, target_npy = self.check_data_dimensions(witness, target)
 
         self.filter_state, full_rank = wf_calculate(
-            witness, target, self.n_filter, idx_target=self.idx_target
+            witness_npy, target_npy, self.n_filter, idx_target=self.idx_target
         )
 
         if not full_rank:
@@ -161,11 +178,11 @@ class WienerFilter(FilterBase):
 
     def apply(
         self,
-        witness: Iterable[float] | Iterable[Iterable[float]],
-        target: Iterable[float] = None,
+        witness: Sequence | NDArray,
+        target: Optional[Sequence | NDArray] = None,
         pad: bool = True,
         update_state: bool = False,
-    ) -> Iterable[float]:
+    ) -> NDArray:
         """Apply the filter to input data
 
         :param witness: Witness sensor data

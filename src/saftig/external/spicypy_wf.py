@@ -2,10 +2,12 @@
 This is intended to allow comparisons between the implementations.
 """
 
-from typing import Iterable
+from typing import Optional, Tuple
+from collections.abc import Sequence
 from contextlib import redirect_stdout
 from io import StringIO
 import numpy as np
+from numpy.typing import NDArray
 import spicypy
 
 from ..common import FilterBase
@@ -32,8 +34,6 @@ class SpicypyWienerFilter(FilterBase):
 
     """
 
-    #: The FIR coefficients of the WF
-    filter_state: Iterable[Iterable[float]] | None = None
     filter_name = "SpicypyWF"
 
     def __init__(
@@ -44,30 +44,33 @@ class SpicypyWienerFilter(FilterBase):
     ):
         super().__init__(n_filter, idx_target, n_channel)
 
-        self.filter_state = None
+        self.conditioned = False
 
     @staticmethod
     def make_spicypy_time_series(
-        witness: Iterable[float] | Iterable[Iterable[float]],
-        target: Iterable[float],
+        witness: Sequence | NDArray,
+        target: Optional[Sequence | NDArray],
         sample_rate: float = 1.0,
-    ):
+    ) -> Tuple[spicypy.signal.TimeSeries, spicypy.signal.TimeSeries]:
         """Convert the given witness and target signals to the format requried by spicypy.
 
         :param witness: Witness sensor data
         :param target: Target sensor data
         :param sample_rate: The sample rate of the time series
         """
-        witness = [
+        witness_ts = [
             spicypy.signal.TimeSeries(wi, sample_rate=sample_rate) for wi in witness
         ]
-        target = spicypy.signal.TimeSeries(target, sample_rate=sample_rate)
-        return witness, target
+        if target is None:
+            target_ts = None
+        else:
+            target_ts = spicypy.signal.TimeSeries(target, sample_rate=sample_rate)
+        return witness_ts, target_ts
 
     def condition(
         self,
-        witness: Iterable[float] | Iterable[Iterable[float]],
-        target: Iterable[float],
+        witness: Sequence | NDArray,
+        target: Sequence | NDArray,
         sample_rate: float = 1.0,
         use_multiprocessing: bool = False,
     ) -> spicypy.signal.WienerFilter:
@@ -95,16 +98,18 @@ class SpicypyWienerFilter(FilterBase):
         with redirect_stdout(StringIO()):
             self.filter_state.create_filters()
 
+        self.conditioned = True
+
         return self.filter_state
 
     def apply(
         self,
-        witness: Iterable[float] | Iterable[Iterable[float]],
-        target: Iterable[float] = None,
+        witness: Sequence | NDArray,
+        target: Optional[Sequence | NDArray],
         pad: bool = True,
         update_state: bool = False,
         sample_rate: float = 1.0,
-    ) -> Iterable[float]:
+    ) -> NDArray:
         """Apply the filter to input data
 
         :param witness: Witness sensor data
@@ -114,7 +119,12 @@ class SpicypyWienerFilter(FilterBase):
 
         :return: prediction
         """
-        witness, target = self.check_data_dimensions(witness, target)
+        if not self.conditioned:
+            raise RuntimeError(
+                "This filter must be conditioned before calling apply()!"
+            )
+
+        witness, _target = self.check_data_dimensions(witness, target)
         assert (
             self.filter_state is not None
         ), "The filter must be conditioned before calling apply()"

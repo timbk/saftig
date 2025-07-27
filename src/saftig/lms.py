@@ -1,7 +1,8 @@
 """Least Mean Squares filter"""
 
-from typing import Iterable
+from collections.abc import Sequence
 import numpy as np
+from numpy.typing import NDArray
 import numba
 
 from .common import FilterBase
@@ -9,15 +10,15 @@ from .common import FilterBase
 
 @numba.njit
 def _lms_loop(
-    witness: Iterable[Iterable[float]],
-    target: Iterable[float],
+    witness: NDArray,
+    target: NDArray,
     n_filter: int,
     idx_target: int,
-    filter_state: Iterable[Iterable[float]],
+    filter_state: NDArray,
     normalized: bool,
     step_scale: float,
     coefficient_clipping: float | None,
-) -> tuple[Iterable[float], Iterable[Iterable[float]]]:
+) -> tuple[NDArray, NDArray, int, int]:
     offset_target = n_filter - idx_target - 1
     pred_length = len(target) - n_filter + 1
 
@@ -55,6 +56,7 @@ class LMSFilter(FilterBase):
     :param idx_target: Position of the prediction
     :param n_channel: Number of witness sensor channels
     :param normalized: if True: NLMS, else LMS
+    :param coefficient_clipping: If set to a positive float, FIR filter coefficients will be limited to this value. This can increase filter stability.
     :param step_scale: the learning rate of the LMS filter
 
     >>> import saftig as sg
@@ -70,7 +72,7 @@ class LMSFilter(FilterBase):
     """
 
     #: The current FIR coefficients of the LMS filter
-    filter_state: Iterable[Iterable[float]] | None = None
+    filter_state: NDArray
     filter_name = "LMS"
 
     def __init__(
@@ -94,15 +96,15 @@ class LMSFilter(FilterBase):
 
         self.reset()
 
-    def reset(self) -> None:
+    def reset(self):
         """reset the filter coefficients to zero"""
         self.filter_state = np.zeros((self.n_channel, self.n_filter))
 
     def condition(
         self,
-        witness: Iterable[float] | Iterable[Iterable[float]],
-        target: Iterable[float],
-    ) -> bool:
+        witness: Sequence | NDArray,
+        target: Sequence | NDArray,
+    ):
         """Use an input dataset to condition the filter
 
         :param witness: Witness sensor data
@@ -112,11 +114,11 @@ class LMSFilter(FilterBase):
 
     def apply(
         self,
-        witness: Iterable[float] | Iterable[Iterable[float]],
-        target: Iterable[float] = None,
+        witness: Sequence | NDArray,
+        target: Sequence | NDArray,
         pad: bool = True,
         update_state: bool = False,
-    ) -> Iterable[float]:
+    ) -> NDArray:
         """Apply the filter to input data
 
         :param witness: Witness sensor data

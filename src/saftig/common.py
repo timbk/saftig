@@ -1,11 +1,13 @@
 """Shared functionality for all other modules"""
 
-from typing import Iterable
+from typing import Optional
+from collections.abc import Sequence
 
 import numpy as np
+from numpy.typing import NDArray
 
 
-def total_power(A: Iterable[float]) -> float:
+def total_power(A: Sequence | NDArray) -> float:
     """calculate the total power of a signal (square or RMS)
 
     >>> import saftig, numpy
@@ -14,17 +16,20 @@ def total_power(A: Iterable[float]) -> float:
     4.0
 
     """
-    return float(np.mean(np.square(A)))
+    A_npy: NDArray = np.array(A)
+    return float(np.mean(np.square(A_npy)))
 
 
-def RMS(A: Iterable[float]) -> float:
+def RMS(A: Sequence | NDArray) -> float:
     """Calculate the root mean square value of an array"""
+    A_npy: NDArray = np.array(A)
+
     # float() is used to convert this into a standard float instead of a 0D numpy array
     # this simplifies writing doctests
-    return float(np.sqrt(np.mean(np.square(A))))
+    return float(np.sqrt(np.mean(np.square(A_npy))))
 
 
-def make_2d_array(A: Iterable | Iterable[Iterable]) -> np.array:
+def make_2d_array(A: Sequence | Sequence[Sequence] | NDArray) -> NDArray:
     """add a dimension to 1D arrays and leave 2D arrays as they are
     This is intended to allow 1D array input for single channel application
 
@@ -42,11 +47,11 @@ def make_2d_array(A: Iterable | Iterable[Iterable]) -> np.array:
            [3, 4]])
 
     """
-    A = np.array(A)
-    if len(A.shape) == 1:
-        return np.array([A])
-    if len(A.shape) == 2:
-        return A
+    A_npy = np.array(A)
+    if len(A_npy.shape) == 1:
+        return np.array([A_npy])
+    if len(A_npy.shape) == 2:
+        return A_npy
     raise ValueError("Input must be 1D or 2D array")
 
 
@@ -59,7 +64,6 @@ class FilterBase:
     :param n_channel: Number of witness sensor channels
     """
 
-    filter_state = None
     filter_name: str | None = None
 
     def __init__(self, n_filter: int, idx_target: int, n_channel: int = 1):
@@ -74,41 +78,47 @@ class FilterBase:
         ), "idx_target must not be negative and smaller than n_filter"
         assert self.filter_name is not None, "BaseFilter childs must set their name"
 
+        self.requries_apply_target = True
+
     def condition(
         self,
-        witness: Iterable[float] | Iterable[Iterable[float]],
-        target: Iterable[float],
-    ):
+        witness: Sequence | Sequence[Sequence],
+        target: Sequence,
+    ) -> None:
         """Use an input dataset to condition the filter
 
         :param witness: Witness sensor data
         :param target: Target sensor data
         """
-        # this should be implemented by the child class
+        raise NotImplementedError(
+            "This function must be implemented by the child class!"
+        )
 
     def apply(
         self,
-        witness: Iterable[float] | Iterable[Iterable[float]],
-        target: Iterable[float],
+        witness: Sequence | NDArray,
+        target: Sequence | NDArray,
         pad: bool = True,
         update_state: bool = False,
-    ) -> Iterable[float]:
+    ) -> NDArray:
         """Apply the filter to input data
 
-        :param witness: Witness sensor data
-        :param target: Target sensor data
+        :param witness: Witness sensor data (1D or 2D array)
+        :param target: Target sensor data (1D array)
         :param pad: if True, apply padding zeros so that the length matches the target signal
         :param update_state: if True, the filter state will be changed. If false, the filter state will remain
 
         :return: prediction
         """
-        # this should be implemented by the child class
+        raise NotImplementedError(
+            "This function must be implemented by the child class!"
+        )
 
     def check_data_dimensions(
         self,
-        witness: Iterable[float] | Iterable[Iterable[float]],
-        target: Iterable[float],
-    ) -> tuple[Iterable[Iterable[float]], Iterable[float]]:
+        witness: Sequence | NDArray,
+        target: Optional[Sequence | NDArray] = None,
+    ) -> tuple[NDArray, NDArray]:
         """Check the dimensions of the provided input data and apply make_2d_array()
 
         :param witness: Witness sensor data
@@ -118,13 +128,15 @@ class FilterBase:
 
         :raises: AssertionError
         """
-        target = np.array(target)
-        witness = make_2d_array(witness)
+        target_npy = np.array(target)
+        witness_npy = make_2d_array(witness)
         assert (
-            witness.shape[0] == self.n_channel
+            witness_npy.shape[0] == self.n_channel
         ), "witness data shape does not match configured channel count"
-        assert (
-            target is None or target.shape[0] == witness.shape[1]
-        ), "Missmatch between target and witness data shapes"
 
-        return witness, target
+        if self.requries_apply_target:
+            assert (
+                target is None or target_npy.shape[0] == witness_npy.shape[1]
+            ), "Missmatch between target and witness data shapes"
+
+        return witness_npy, target_npy

@@ -1,7 +1,9 @@
 """experiment in building a polynomial lms filter"""
 
-from typing import Iterable
+from typing import Optional
+from collections.abc import Sequence, MutableSequence
 import numpy as np
+from numpy.typing import NDArray
 import numba
 
 from .common import FilterBase
@@ -9,16 +11,33 @@ from .common import FilterBase
 
 @numba.njit
 def _lms_loop(
-    witness: Iterable[Iterable[float]],
-    target: Iterable[float],
+    witness: NDArray,
+    target: NDArray,
     n_filter: int,
     idx_target: int,
-    filter_state: Iterable[Iterable[float]],
+    filter_state: NDArray,
     normalized: bool,
     step_scale: float,
     coefficient_clipping: float | None,
     order: int,
-) -> tuple[Iterable[float], Iterable[Iterable[float]]]:
+) -> tuple[NDArray, NDArray, int, int]:
+    """Run an LMS filter over intput sequences.
+
+    :param witness: Witness sensor data
+    :param target: Target sensor data (is ignored)
+    :param n_filter: Length of the FIR filter (how many samples are in the input window per output sample)
+    :param idx_target: Position of the prediction
+    :param filter_state: The initial FIR filter state
+    :param normalized: if True: NLMS, else LMS
+    :param step_scale: the learning rate of the LMS filter
+
+    :param n_channel: Number of witness sensor channels
+    :param order: polynomial order of the filter
+    :param pad: if True, apply padding zeros so that the length matches the target signal
+    :param update_state: if True, the filter state will be changed. If false, the filter state will remain
+
+    :return: Prediction, Filter state, Target offset, Prediction length
+    """
     offset_target = n_filter - idx_target - 1
     pred_length = len(target) - n_filter + 1
 
@@ -55,8 +74,8 @@ def _lms_loop(
                 filter_state, -coefficient_clipping, coefficient_clipping
             )
 
-    prediction = np.array(prediction, dtype=np.float64)
-    return prediction, filter_state, offset_target, pred_length
+    prediction_npy = np.array(prediction, dtype=np.float64)
+    return prediction_npy, filter_state, offset_target, pred_length
 
 
 class PolynomialLMSFilter(FilterBase):
@@ -66,9 +85,10 @@ class PolynomialLMSFilter(FilterBase):
     :param n_filter: Length of the FIR filter (how many samples are in the input window per output sample)
     :param idx_target: Position of the prediction
     :param n_channel: Number of witness sensor channels
-    :param normalized: if True: NLMS, else LMS
-    :param step_scale: the learning rate of the LMS filter
-    :param order: polynomial order of the filter
+    :param normalized: If True: NLMS, else LMS
+    :param step_scale: The learning rate of the LMS filter
+    :param coefficient_clipping: If set to a positive float, FIR filter coefficients will be limited to this value. This can increase filter stability.
+    :param order: Polynomial order of the filter
 
     >>> import saftig as sg
     >>> n_filter = 128
@@ -83,7 +103,7 @@ class PolynomialLMSFilter(FilterBase):
     """
 
     #: The current FIR coefficients of the LMS filter
-    filter_state: Iterable[Iterable[Iterable[float]]] | None = None
+    filter_state: NDArray
     filter_name = "PolyLMS"
 
     def __init__(
@@ -93,7 +113,7 @@ class PolynomialLMSFilter(FilterBase):
         n_channel: int = 1,
         normalized: bool = True,
         step_scale: float = 0.5,
-        coefficient_clipping: float | None = None,
+        coefficient_clipping: Optional[float] = None,
         order: int = 1,
     ):
         super().__init__(n_filter, idx_target, n_channel)
@@ -110,15 +130,15 @@ class PolynomialLMSFilter(FilterBase):
 
         self.reset()
 
-    def reset(self) -> None:
+    def reset(self):
         """reset the filter coefficients to zero"""
         self.filter_state = np.zeros((self.order, self.n_channel, self.n_filter))
 
     def condition(
         self,
-        witness: Iterable[float] | Iterable[Iterable[float]],
-        target: Iterable[float],
-    ) -> bool:
+        witness: Sequence | NDArray,
+        target: Sequence | NDArray,
+    ):
         """Use an input dataset to condition the filter
 
         :param witness: Witness sensor data
@@ -128,11 +148,11 @@ class PolynomialLMSFilter(FilterBase):
 
     def apply(
         self,
-        witness: Iterable[float] | Iterable[Iterable[float]],
-        target: Iterable[float] = None,
+        witness: Sequence | NDArray,
+        target: Sequence | NDArray,
         pad: bool = True,
         update_state: bool = False,
-    ) -> Iterable[float]:
+    ) -> NDArray:
         """Apply the filter to input data
 
         :param witness: Witness sensor data

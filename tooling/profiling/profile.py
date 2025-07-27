@@ -1,6 +1,6 @@
 """Tooling to measure data throughput of filter implementations."""
 
-from typing import Iterable
+from collections.abc import Sequence
 import time
 import platform
 import subprocess
@@ -8,6 +8,8 @@ from warnings import warn
 
 import psutil
 import numpy as np
+from numpy.typing import NDArray
+
 import saftig as sg
 
 MULTITHREAD = True
@@ -129,8 +131,8 @@ def run_profiling(config, n_samples, n_filter, n_channel, idx_target=0):
 
 
 def profiling_scan(
-    target: str, target_values: Iterable[float], other_values: dict, filter_configs
-) -> np.array:
+    target: str, target_values: Sequence | NDArray, other_values: dict, filter_configs
+) -> dict:
     """scan through one variable and record the runtime of the selected filters
 
     :param target: the target variable; one of 'n_filter', 'n_samples', 'idx_target', 'n_channel'
@@ -156,14 +158,13 @@ def profiling_scan(
 
         result = run_profiling(filter_configs, **other_values)
         results.append(other_values["n_samples"] / result)
-    other_values = tuple((k, v) for k, v in other_values.items() if k != target)
     return {
         "target": target,
         "target_values": target_values,
         "results": np.array(results),
         "filter_configs": filter_configs_to_str(filter_configs),
         "filter_names": [i[0].filter_name for i in filter_configs],
-        "other_values": other_values,
+        "other_values": tuple((k, v) for k, v in other_values.items() if k != target),
     }
 
 
