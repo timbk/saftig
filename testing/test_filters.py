@@ -9,6 +9,8 @@ class TestFilter:
     Contains common test cases and testing tools
     """
 
+    __test__ = False
+
     # The to-be-tested filter class
     target_filter: type[sg.FilterBase]
     # to-be-tested configurations

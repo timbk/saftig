@@ -9,6 +9,8 @@ from .test_lms import TestLMSFilter
 class TestPolynomialLMSFilter(TestLMSFilter):
     """tests for the polynomial vaiant of a LeastMeanSquares filter implementation"""
 
+    __test__ = True
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
