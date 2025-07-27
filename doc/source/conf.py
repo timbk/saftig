@@ -16,7 +16,7 @@ author = "Tim Kuhlbusch"
 extensions = ["sphinx.ext.autodoc", "sphinx.ext.mathjax"]
 
 templates_path = ["_templates"]
-exclude_patterns = []
+exclude_patterns: list = []
 
 autodoc_typehints = "description"
 

@@ -1,4 +1,4 @@
-name: Pylint
+name: Check static types
 
 on: [push]
 
@@ -20,4 +20,4 @@ jobs:
         pip install ".[dev]"
     - name: Analysing the code with pylint
       run: |
-        make linter
+        make mypy

@@ -21,6 +21,9 @@ linter_testing:
 	./tooling/run_linter_tests.sh
 lt: linter_testing
 
+mypy:
+	mypy .
+
 doc: doc/source/* doc/*
 	cd doc/ && $(MAKE) html
 
@@ -40,4 +43,4 @@ testpublish:
 	python -m build -s
 	twine upload --repository testpypi dist/*
 
-.PHONY: all, doc, view, test, test_time, linter, coverage, cweb, linter_testing, lt, build, clean, testpublish, ie, test_coverage
+.PHONY: all, doc, view, test, test_time, linter, coverage, cweb, linter_testing, lt, mypy, build, clean, testpublish, ie, test_coverage

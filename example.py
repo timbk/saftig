@@ -22,17 +22,18 @@ if __name__ == "__main__":
     # filt = saftig.WienerFilter(N_filter, 0, N_channel)
     # filt = saftig.UpdatingWienerFilter(N_filter, 0, N_channel, 20*N_filter, 20*N_filter)
     # filt = saftig.LMSFilter(N_filter, 0, N_channel, step_scale=0.1)
-    # filt = saftig.PolynomialLMSFilter(N_filter, 0, N_channel, step_scale=0.1, order=3, coefficient_clipping=5)
+    filt = saftig.PolynomialLMSFilter(
+        N_filter, 0, N_channel, step_scale=0.1, order=3, coefficient_clipping=5
+    )
     # filt = saftig.LMSFilterC(N_filter, 0, N_channel, step_scale=0.1)
-    filt = saftig.external.SpicypyWienerFilter(N_filter, 0, N_channel)
+    # filt = saftig.external.SpicypyWienerFilter(N_filter, 0, N_channel)
 
     filt.condition(w, t)
     fs_before = np.array(filt.filter_state)
     if PROFILE:
-        stats = cProfile.run(
+        cProfile.run(
             "pred = filt.apply(w, t, pad=True, update_state=True)", sort="tottime"
         )
-        ic(stats)
         exit()
     else:
         pred = filt.apply(w, t, pad=True, update_state=True)

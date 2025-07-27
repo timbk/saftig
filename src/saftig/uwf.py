@@ -1,9 +1,11 @@
 """Updating Wiener Filter"""
 
-from typing import Iterable
+from typing import Optional
+from collections.abc import Sequence
 from warnings import warn
 
 import numpy as np
+from numpy.typing import NDArray
 
 from .common import FilterBase
 from .wf import wf_calculate, wf_apply
@@ -31,7 +33,7 @@ class UpdatingWienerFilter(FilterBase):
     """
 
     #: The FIR coefficients of the WF
-    filter_state: Iterable[Iterable[float]] | None = None
+    filter_state: NDArray
     filter_name = "UWF"
 
     def __init__(
@@ -48,8 +50,8 @@ class UpdatingWienerFilter(FilterBase):
 
     def condition(
         self,
-        witness: Iterable[float] | Iterable[Iterable[float]],
-        target: Iterable[float],
+        witness: Sequence | NDArray,
+        target: Sequence | NDArray,
         hide_warning: bool = False,
     ) -> None:
         """Placeholder for compatibility to other filters; does nothing!"""
@@ -61,11 +63,11 @@ class UpdatingWienerFilter(FilterBase):
 
     def apply(
         self,
-        witness: Iterable[float] | Iterable[Iterable[float]],
-        target: Iterable[float] = None,
+        witness: Sequence | NDArray,
+        target: Sequence | NDArray,
         pad: bool = True,
         update_state: bool = False,
-    ) -> Iterable[float]:
+    ) -> NDArray:
         """Apply the filter to input data
 
         :param witness: Witness sensor data
@@ -114,11 +116,13 @@ class UpdatingWienerFilter(FilterBase):
             warn("Warning: not all UWF blocks had full rank", RuntimeWarning)
 
         if pad:
-            prediction = np.concatenate(
+            prediction_npy = np.concatenate(
                 [
                     np.zeros(self.n_filter - 1 - self.idx_target),
                     prediction,
                     np.zeros(self.idx_target + additional_padding),
                 ]
             )
-        return prediction
+        else:
+            prediction_npy = np.array(prediction)
+        return prediction_npy

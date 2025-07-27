@@ -10,9 +10,9 @@ class TestFilter:
     """
 
     # The to-be-tested filter class
-    target_filter = None
+    target_filter: type[sg.FilterBase]
     # to-be-tested configurations
-    default_filter_parameters = None
+    default_filter_parameters: list = [{}]
 
     # settings to check performance
     expected_performance = {
@@ -24,15 +24,13 @@ class TestFilter:
     def __init__(self):
         raise RuntimeError("This only functions as a parent class!")
 
-    def set_target(self, target_filter, default_filter_parameters=None) -> None:
+    def set_target(self, target_filter, default_filter_parameters=[{}]) -> None:
         """set the target filter and configurtions
         This is required to run the common tests
 
         :param target_filter: The to-be-tested filter class
         :param default_filter_parameters: A list of all configuration for which the tests will be run
         """
-        if default_filter_parameters is None:
-            default_filter_parameters = [{}]
         assert isinstance(default_filter_parameters, list)
         self.target_filter = target_filter
         self.default_filter_parameters = default_filter_parameters
@@ -66,6 +64,17 @@ class TestFilter:
                 warnings.simplefilter("ignore")
                 filt.condition(witness, target)
                 filt.apply(witness, target)
+
+    def test_acceptance_of_lists(self):
+        """check that the filter accepts inputs that are not np.ndarray"""
+        n_filter = 128
+        witness, target = sg.TestDataGenerator(0.1).generate(n_filter * 2)
+
+        for filt in self.instantiate_filters(n_filter):
+            with warnings.catch_warnings():  # warnings are expected here
+                warnings.simplefilter("ignore")
+                filt.condition(witness.tolist(), target.tolist())
+                filt.apply(witness.tolist(), target.tolist())
 
     def test_output_shapes(self):
         """check output shapes"""

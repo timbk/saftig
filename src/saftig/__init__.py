@@ -10,6 +10,7 @@ from .evaluation import (
     residual_power_ratio,
     residual_amplitude_ratio,
     measure_runtime,
+    FilterBase,
 )
 
 from .wf import WienerFilter

@@ -1,9 +1,10 @@
 """Collection of tools for the evaluation and testing of filters"""
 
-from typing import Iterable
+from collections.abc import Sequence
 from timeit import timeit
 
 import numpy as np
+from numpy.typing import NDArray
 
 from .common import total_power, FilterBase
 
@@ -30,7 +31,7 @@ class TestDataGenerator:
 
     def __init__(
         self,
-        witness_noise_level: float | Iterable[float] = 0.1,
+        witness_noise_level: float | Sequence = 0.1,
         target_noise_level: float = 0,
         transfer_function: float = 1,
         sample_rate: float = 1.0,
@@ -50,7 +51,7 @@ class TestDataGenerator:
         assert len(self.transfer_function.shape) == 0
         assert self.sample_rate > 0
 
-    def scaled_whitenoise(self, shape) -> Iterable[float]:
+    def scaled_whitenoise(self, shape) -> NDArray:
         """Generate whitenoise with an ASD of one
 
         :param shape: shape of the new array
@@ -59,7 +60,7 @@ class TestDataGenerator:
         """
         return np.random.normal(0, np.sqrt(self.sample_rate / 2), shape)
 
-    def generate(self, N: int) -> tuple[Iterable[float], Iterable[float]]:
+    def generate(self, N: int) -> tuple[NDArray, NDArray]:
         """Generate sequences of samples
 
         :param N: number of samples
@@ -78,14 +79,14 @@ class TestDataGenerator:
 
 
 def measure_runtime(
-    filter_classes: Iterable[FilterBase],
+    filter_classes: Sequence[FilterBase],
     n_samples: int = int(1e4),
     n_filter: int = 128,
     idx_target: int = 0,
     n_channel: int = 1,
-    additional_filter_settings: Iterable[dict] | None = None,
+    additional_filter_settings: Sequence[dict] | None = None,
     repititions: int = 1,
-) -> tuple[Iterable[float], Iterable[float]]:
+) -> tuple[Sequence, Sequence]:
     """Measure the runtime of filers for a specific scenario
     Be aware that this gives no feedback upon how much multithreading is used!
 
@@ -125,8 +126,8 @@ def measure_runtime(
 
 
 def residual_power_ratio(
-    target: Iterable[float],
-    prediction: Iterable[float],
+    target: Sequence,
+    prediction: Sequence,
     start: int | None = None,
     stop: int | None = None,
     remove_dc: bool = True,
@@ -139,17 +140,17 @@ def residual_power_ratio(
     :param stop: use only a section of the arrays, stop at this index
     :param remove DC component: remove DC component before calculation
     """
-    target = np.array(target[start:stop]).astype(np.float64)
-    prediction = np.array(prediction[start:stop]).astype(np.float64)
-    assert target.shape == prediction.shape
+    target_npy = np.array(target[start:stop]).astype(np.float64)
+    prediction_npy = np.array(prediction[start:stop]).astype(np.float64)
+    assert target_npy.shape == prediction_npy.shape
 
     if remove_dc:
-        target -= np.mean(target)
-        prediction -= np.mean(prediction)
+        target_npy -= np.mean(target)
+        prediction_npy -= np.mean(prediction_npy)
 
-    residual = prediction - target
+    residual = prediction_npy - target_npy
 
-    return float(total_power(residual) / total_power(target))
+    return float(total_power(residual) / total_power(target_npy))
 
 
 def residual_amplitude_ratio(*args, **kwargs) -> float:

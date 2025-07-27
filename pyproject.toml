@@ -33,10 +33,21 @@ classifiers = [
 
 [project.optional-dependencies]
 dev = [
-    "coverage>=5.1",
-    "pylint>=3.0.3",
-    "black>=20.8",
+    "coverage >= 5.1",
+    "pylint >= 3.0.3",
+    "black >= 20.8",
+    "mypy >= 1.15",
 ]
 
 [project.urls]
 Repository = "https://github.com/timbk/saftig"
+
+[[tool.mypy.overrides]]
+module = [
+    "scipy.*",
+    "psutil.*",
+    "numba.*",
+    "icecream.*",
+    "spicypy.*",
+]
+ignore_missing_imports = true
