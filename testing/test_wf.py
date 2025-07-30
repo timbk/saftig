@@ -8,6 +8,8 @@ from .test_filters import TestFilter
 class TestWienerFilter(unittest.TestCase, TestFilter):
     """Tests for the WF"""
 
+    __test__ = True
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.set_target(sg.WienerFilter)

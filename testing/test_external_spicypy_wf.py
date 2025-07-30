@@ -10,6 +10,8 @@ from .test_filters import TestFilter
 class TestSpicypyWienerFilter(unittest.TestCase, TestFilter):
     """Tests for the WF"""
 
+    __test__ = True
+
     expected_performance = {
         # noise level, (acceptance min, acceptance_max)
         0.0: (0, 0.05),

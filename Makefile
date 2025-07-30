@@ -6,6 +6,8 @@ ie:
 
 test:
 	python -m unittest discover .
+pytest:
+	pytest
 test_time:
 	python -m unittest discover . --duration=5
 test_coverage:

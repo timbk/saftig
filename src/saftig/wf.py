@@ -193,9 +193,10 @@ class WienerFilter(FilterBase):
         :return: prediction
         """
         witness, target = self.check_data_dimensions(witness, target)
-        assert (
-            self.filter_state is not None
-        ), "The filter must be conditioned before calling apply()"
+        if self.filter_state is None:
+            raise RuntimeError(
+                "The filter must be conditioned before apply() can be used."
+            )
 
         prediction = wf_apply(self.filter_state, witness)
         if pad:

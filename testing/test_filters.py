@@ -9,6 +9,8 @@ class TestFilter:
     Contains common test cases and testing tools
     """
 
+    __test__ = False
+
     # The to-be-tested filter class
     target_filter: type[sg.FilterBase]
     # to-be-tested configurations
@@ -43,7 +45,7 @@ class TestFilter:
             yield self.target_filter(n_filter, idx_target, n_channel, **parameters)
 
     def test_exception_on_missshaped_input(self):
-        """check that matching exceptions are thrown for obviously wrong input shapes"""
+        """Check that matching exceptions are thrown for obviously wrong input shapes"""
         n_filter = 128
         witness, target = sg.TestDataGenerator(0.1).generate(int(1e4))
 
@@ -55,7 +57,7 @@ class TestFilter:
             self.assertRaises(ValueError, filt.apply, [[[1], [1]]], [1])
 
     def test_acceptance_of_minimum_input_length(self):
-        """check that the filter works with the minimum input length of two filter lengths"""
+        """Check that the filter works with the minimum input length of two filter lengths"""
         n_filter = 128
         witness, target = sg.TestDataGenerator(0.1).generate(n_filter * 2)
 
@@ -66,7 +68,7 @@ class TestFilter:
                 filt.apply(witness, target)
 
     def test_acceptance_of_lists(self):
-        """check that the filter accepts inputs that are not np.ndarray"""
+        """Check that the filter accepts inputs that are not np.ndarray"""
         n_filter = 128
         witness, target = sg.TestDataGenerator(0.1).generate(n_filter * 2)
 
@@ -77,7 +79,7 @@ class TestFilter:
                 filt.apply(witness.tolist(), target.tolist())
 
     def test_output_shapes(self):
-        """check output shapes"""
+        """Check output shapes"""
         n_filter = 128
         witness, target = sg.TestDataGenerator(0.1).generate(int(1e4))
 
@@ -94,8 +96,19 @@ class TestFilter:
             prediction = filt.apply(witness, target, pad=False)
             self.assertEqual(len(prediction), len(target) - n_filter + 1)
 
+    def test_apply_on_unconditioned_filter(self):
+        """Check that calling apply() on an unconditioned filter either works or throws an RuntimeError"""
+        n_filter = 128
+        witness, target = sg.TestDataGenerator(0.1).generate(int(1e4))
+
+        for filt in self.instantiate_filters(n_filter):
+            try:
+                filt.apply(witness, target)
+            except RuntimeError:
+                pass
+
     def test_performance(self):
-        """check that the filter reaches a WF-Like performance on a simple static test case"""
+        """Check that the filter reaches a WF-Like performance on a simple static test case"""
         for noise_level, acceptable_residual in self.expected_performance.items():
             n_filter = 32
             witness, target = sg.TestDataGenerator([noise_level] * 2).generate(int(2e4))
