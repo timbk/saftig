@@ -43,6 +43,7 @@ dev = [
 
 [project.urls]
 Repository = "https://github.com/timbk/saftig"
+Documentation = "https://saftig.readthedocs.io/en/latest/"
 
 [[tool.mypy.overrides]]
 module = [
