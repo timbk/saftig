@@ -24,6 +24,7 @@ python_sources = [
   'saftig/evaluation/dataset.py',
   'saftig/evaluation/metrics.py',
   'saftig/evaluation/evaluation.py',
+  'saftig/evaluation/report_generation.py',
 ]
 
 # actually install the python module
